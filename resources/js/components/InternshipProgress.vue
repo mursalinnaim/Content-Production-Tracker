@@ -1,6 +1,5 @@
 <script setup lang="ts">
 interface InternshipProgress {
-    studentName: string;
     projectName: string;
     currentDay: string;
     status: string;
@@ -9,19 +8,18 @@ interface InternshipProgress {
 
 defineProps<{
     progress: InternshipProgress;
+    studentName: string;
 }>();
 </script>
 
 <template>
     <div class="rounded-xl border p-6">
-        <h2 class="text-xl font-semibold">
-            Internship Progress
-        </h2>
+        <h2 class="text-xl font-semibold">Internship Progress</h2>
 
         <div class="mt-4 space-y-2">
             <p>
                 <span class="font-medium">Student:</span>
-                {{ progress.studentName }}
+                {{ studentName }}
             </p>
 
             <p>

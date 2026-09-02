@@ -7,7 +7,6 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard', [
         'internship' => [
-            'studentName' => 'Md Mursalin Hossen Naim',
             'projectName' => 'Content Production Tracker',
             'currentDay' => 'Day 1',
             'status' => 'Environment ready',

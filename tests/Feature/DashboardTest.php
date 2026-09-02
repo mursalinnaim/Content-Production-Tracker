@@ -14,3 +14,14 @@ test('authenticated users can visit the dashboard', function () {
     $response = $this->get(route('dashboard'));
     $response->assertOk();
 });
+test('authenticated users can see Internship Progress on the dashboard', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Dashboard')
+        ->has('internship')
+    );
+});
