@@ -5,7 +5,15 @@ use Illuminate\Support\Facades\Route;
 Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::inertia('dashboard', 'Dashboard', [
+        'internship' => [
+            'studentName' => 'Md Mursalin Hossen Naim',
+            'projectName' => 'Content Production Tracker',
+            'currentDay' => 'Day 1',
+            'status' => 'Environment ready',
+            'message' => 'I built and verified this page.',
+        ],
+    ])->name('dashboard');
 });
 
 require __DIR__.'/settings.php';

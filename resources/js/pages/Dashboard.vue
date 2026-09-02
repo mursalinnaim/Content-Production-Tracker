@@ -1,7 +1,22 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head , usePage } from '@inertiajs/vue3';
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
+import InternshipProgress from '@/components/InternshipProgress.vue';
 import { dashboard } from '@/routes';
+
+interface InternshipProgress {
+    studentName: string;
+    projectName: string;
+    currentDay: string;
+    status: string;
+    message: string;
+}
+
+const page = usePage<{
+    internship: InternshipProgress;
+}>();
+
+const internshipProgress = page.props.internship;
 
 defineOptions({
     layout: {
@@ -22,11 +37,9 @@ defineOptions({
         class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
     >
         <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-            <div
-                class="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border"
-            >
-                <PlaceholderPattern />
-            </div>
+
+                <InternshipProgress :progress="internshipProgress" />
+
             <div
                 class="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border"
             >
