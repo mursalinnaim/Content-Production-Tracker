@@ -33,7 +33,7 @@ class ProjectFactory extends Factory
                 'Review',
                 'Complete',
             ]),
-            'due_date' => fake()->date(),
+            'due_date' => fake()->dateTimeBetween('tomorrow', '+30 days')->format('Y-m-d'),
             'brief' => fake()->paragraph(),
             'notes' => fake()->paragraph(),
         ];
