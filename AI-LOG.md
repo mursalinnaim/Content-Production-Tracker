@@ -3,19 +3,25 @@
 ## Entry 1
 
 ### Task
+
 What I wanted to do.
 
 ### Prompt
+
 What I asked the AI.
 
 ### Suggested Solution
+
 What the AI suggested.
 
 ### My Verification
+
 How I checked the suggestion.
 
 ### My Changes
+
 What I changed and why.
+
 # AI Usage Log
 
 ## Entry 1
@@ -83,4 +89,3 @@ I logged in with the test account and confirmed that the correct user name appea
 ### My Changes
 
 I replaced the hardcoded student name with the authenticated user's name, added the dashboard feature test, and corrected an initial Inertia test assertion after it failed.
-

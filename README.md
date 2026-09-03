@@ -6,15 +6,15 @@ The project demonstrates Laravel authentication, MySQL database configuration, I
 
 ## Technology Stack
 
-* **Backend:** Laravel
-* **Frontend:** Vue 3
-* **Language:** PHP, TypeScript
-* **Frontend integration:** Inertia.js
-* **Database:** MySQL
-* **Authentication:** Laravel built-in authentication
-* **Testing:** Pest
-* **Build tooling:** Vite
-* **Package managers:** Composer, npm
+- **Backend:** Laravel
+- **Frontend:** Vue 3
+- **Language:** PHP, TypeScript
+- **Frontend integration:** Inertia.js
+- **Database:** MySQL
+- **Authentication:** Laravel built-in authentication
+- **Testing:** Pest
+- **Build tooling:** Vite
+- **Package managers:** Composer, npm
 
 ## Local Installation
 
@@ -22,11 +22,11 @@ The project demonstrates Laravel authentication, MySQL database configuration, I
 
 Make sure the following are installed:
 
-* PHP 8.4 or compatible PHP version
-* Composer
-* Node.js and npm
-* MySQL
-* Git
+- PHP 8.4 or compatible PHP version
+- Composer
+- Node.js and npm
+- MySQL
+- Git
 
 MySQL can be provided through XAMPP, a standalone MySQL installation, Docker, or another compatible local setup.
 
@@ -124,9 +124,9 @@ php artisan test
 
 The Day 1 implementation includes tests verifying:
 
-* Guests cannot access the dashboard.
-* Authenticated users can access the dashboard.
-* Authenticated users receive the Internship Progress data.
+- Guests cannot access the dashboard.
+- Authenticated users can access the dashboard.
+- Authenticated users receive the Internship Progress data.
 
 Some starter-kit two-factor authentication tests may be skipped because two-factor authentication is not enabled.
 
@@ -150,16 +150,16 @@ and checks the Vue/TypeScript code without generating output files.
 
 ### Completed
 
-* Created the Laravel project.
-* Configured MySQL.
-* Ran database migrations successfully.
-* Verified the authentication flow.
-* Added the Internship Progress section to the dashboard.
-* Added typed Vue component props using TypeScript.
-* Connected the authenticated user's name to the Internship Progress component.
-* Added automated dashboard tests.
-* Added TypeScript checking.
-* Added Day 1 documentation and screenshots.
+- Created the Laravel project.
+- Configured MySQL.
+- Ran database migrations successfully.
+- Verified the authentication flow.
+- Added the Internship Progress section to the dashboard.
+- Added typed Vue component props using TypeScript.
+- Connected the authenticated user's name to the Internship Progress component.
+- Added automated dashboard tests.
+- Added TypeScript checking.
+- Added Day 1 documentation and screenshots.
 
 ### Current Day 1 Status
 
@@ -174,7 +174,6 @@ Current day: **Day 1**
 Screenshots demonstrating the authentication flow and dashboard are available in:
 
 docs/
-
 
 ### Registration
 
