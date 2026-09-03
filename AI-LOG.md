@@ -89,3 +89,47 @@ I logged in with the test account and confirmed that the correct user name appea
 ### My Changes
 
 I replaced the hardcoded student name with the authenticated user's name, added the dashboard feature test, and corrected an initial Inertia test assertion after it failed.
+
+## Entry 4
+
+### Task
+
+Create the Project database model, migration, factory, and seed data.
+
+### Prompt
+
+I asked the AI how to implement the Project model and migration, define the User and Project relationships, and create realistic factory and seed data.
+
+### Suggested Solution
+
+The AI suggested creating a `Project` model with a migration, adding a foreign key from projects to users with cascade deletion, adding the required relationships and casts, and using a factory and seeder to generate development data.
+
+### My Verification
+
+I ran the migrations and seeded a fresh local database. I also ran the test suite and verified that the model relationships and cascade deletion worked.
+
+### My Changes
+
+I created the Project model and migration, updated the User model, created `ProjectFactory`, and updated `DatabaseSeeder` with one demo user and ten sample projects.
+
+## Entry 5
+
+### Task
+
+Test Project listing, authentication, ownership, ordering, and empty state.
+
+### Prompt
+
+I asked the AI to create Pest feature tests covering the Project listing requirements from the assignment.
+
+### Suggested Solution
+
+The AI suggested tests for guest access, authenticated access, project ownership, newest-first ordering, and an empty project list.
+
+### My Verification
+
+I ran the focused Project tests and then the full Laravel test suite. The final result was 33 tests passed, 3 skipped, 0 failed, with 114 assertions.
+
+### My Changes
+
+I added the Project feature tests and verified that the full test suite passed.
