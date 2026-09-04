@@ -25,19 +25,19 @@ Each project belongs to exactly one user and contains the information needed to 
 
 The first version supports the following content types:
 
-* Ebook
-* Blog post
-* Newsletter
-* Social post
+- Ebook
+- Blog post
+- Newsletter
+- Social post
 
 ## Allowed Statuses
 
 The first version supports the following project statuses:
 
-* Draft
-* In progress
-* Review
-* Complete
+- Draft
+- In progress
+- Review
+- Complete
 
 ## Ownership and Access Rules
 
@@ -55,7 +55,9 @@ If a user has no projects, the Projects page should display a clear empty state 
 ## Scope
 
 This specification describes the data and expected behavior for the first version of content projects. It does not define implementation details.
+
 ## Database Relationship
+
 ```mermaid
 erDiagram
     USERS ||--o{ PROJECTS : owns
@@ -79,4 +81,5 @@ erDiagram
         timestamp updated_at
     }
 ```
+
 A user can own multiple projects, while each project belongs to exactly one user. The user_id field belongs in the projects table because it identifies which user owns each individual project and allows the application to restrict users to viewing only their own projects. This creates a one-to-many relationship between users and projects.

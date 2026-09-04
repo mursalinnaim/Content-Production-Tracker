@@ -1,19 +1,19 @@
 <script setup lang="ts">
 interface Project {
-    id: number
-    title: string
-    content_type: string
-    status: string
-    due_date: string | null
+    id: number;
+    title: string;
+    content_type: string;
+    status: string;
+    due_date: string | null;
 }
 const formatDate = (date: string | null): string => {
-    return date ? date.slice(0, 10) : 'No due date'
-}
+    return date ? date.slice(0, 10) : 'No due date';
+};
 interface Props {
-    projects: Project[]
+    projects: Project[];
 }
 
-defineProps<Props>()
+defineProps<Props>();
 </script>
 
 <template>
@@ -21,7 +21,9 @@ defineProps<Props>()
         <div>
             <h1 class="text-2xl font-semibold">Projects</h1>
             <p class="text-muted-foreground">
-                {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }}
+                {{ projects.length }} project{{
+                    projects.length === 1 ? '' : 's'
+                }}
             </p>
         </div>
 
@@ -30,7 +32,7 @@ defineProps<Props>()
             class="rounded-xl border p-8 text-center"
         >
             <h2 class="text-lg font-medium">No projects yet</h2>
-            <p class="mt-2 text-sm text-muted-foreground">
+            <p class="text-muted-foreground mt-2 text-sm">
                 You don't have any projects yet.
             </p>
         </div>
@@ -45,10 +47,12 @@ defineProps<Props>()
                     {{ project.title }}
                 </h2>
 
-                <div class="mt-3 space-y-1 text-sm text-muted-foreground">
+                <div class="text-muted-foreground mt-3 space-y-1 text-sm">
                     <p>Type: {{ project.content_type }}</p>
                     <div class="mt-2">
-                        <span class="rounded-full border px-2.5 py-1 text-xs font-medium">
+                        <span
+                            class="rounded-full border px-2.5 py-1 text-xs font-medium"
+                        >
                             {{ project.status }}
                         </span>
                     </div>

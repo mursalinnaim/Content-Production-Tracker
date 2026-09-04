@@ -6,16 +6,16 @@ The project is being developed incrementally across multiple internship days, wi
 
 ## Technology Stack
 
-* **Backend:** Laravel
-* **Frontend:** Vue 3
-* **Language:** PHP, TypeScript
-* **Frontend integration:** Inertia.js
-* **Database:** MySQL
-* **Authentication:** Laravel starter kit authentication
-* **Testing:** Pest
-* **Build tooling:** Vite
-* **Package managers:** Composer, npm
-* **Development environment:** Laravel Herd, XAMPP MySQL
+- **Backend:** Laravel
+- **Frontend:** Vue 3
+- **Language:** PHP, TypeScript
+- **Frontend integration:** Inertia.js
+- **Database:** MySQL
+- **Authentication:** Laravel starter kit authentication
+- **Testing:** Pest
+- **Build tooling:** Vite
+- **Package managers:** Composer, npm
+- **Development environment:** Laravel Herd, XAMPP MySQL
 
 ## Local Installation
 
@@ -23,11 +23,11 @@ The project is being developed incrementally across multiple internship days, wi
 
 Make sure the following are installed:
 
-* PHP 8.4 or compatible PHP version
-* Composer
-* Node.js and npm
-* MySQL
-* Git
+- PHP 8.4 or compatible PHP version
+- Composer
+- Node.js and npm
+- MySQL
+- Git
 
 ### 1. Clone the repository
 
@@ -99,9 +99,9 @@ php artisan migrate:fresh --seed
 
 A demo account is included for local development and testing:
 
-* **Name:** Intern Test
-* **Email:** [intern@example.test](mailto:intern@example.test)
-* **Password:** password
+- **Name:** Intern Test
+- **Email:** [intern@example.test](mailto:intern@example.test)
+- **Password:** password
 
 These credentials are intended for development only and must not be used for a production environment.
 
@@ -129,11 +129,11 @@ Open the URL provided by Laravel in your browser.
 
 The application includes:
 
-* Registration
-* Login
-* Authenticated dashboard
-* Internship Progress section
-* Project listing
+- Registration
+- Login
+- Authenticated dashboard
+- Internship Progress section
+- Project listing
 
 ## Projects
 
@@ -149,28 +149,28 @@ The Projects page displays projects belonging to the currently authenticated use
 
 Each project contains:
 
-* Title
-* Content type
-* Status
-* Due date
-* Owner
-* Brief
-* Notes
-* Creation and update timestamps
+- Title
+- Content type
+- Status
+- Due date
+- Owner
+- Brief
+- Notes
+- Creation and update timestamps
 
 Supported content types:
 
-* Ebook
-* Blog post
-* Newsletter
-* Social post
+- Ebook
+- Blog post
+- Newsletter
+- Social post
 
 Supported statuses:
 
-* Draft
-* In progress
-* Review
-* Complete
+- Draft
+- In progress
+- Review
+- Complete
 
 Projects belong to one user, while a user can have multiple projects. Users can only view their own projects.
 
@@ -222,17 +222,17 @@ php artisan test
 
 The test suite covers:
 
-* Guests are redirected to the login page.
-* Authenticated users can access the dashboard.
-* Authenticated users can see the Internship Progress section.
-* Guests cannot access the Projects page.
-* Authenticated users can access the Projects page.
-* Users can see their own projects.
-* Users cannot see projects belonging to another user.
-* Projects are displayed newest first.
-* Users with no projects receive an empty project list.
-* Project model relationships work correctly.
-* Projects are deleted when their owning user is deleted.
+- Guests are redirected to the login page.
+- Authenticated users can access the dashboard.
+- Authenticated users can see the Internship Progress section.
+- Guests cannot access the Projects page.
+- Authenticated users can access the Projects page.
+- Users can see their own projects.
+- Users cannot see projects belonging to another user.
+- Projects are displayed newest first.
+- Users with no projects receive an empty project list.
+- Project model relationships work correctly.
+- Projects are deleted when their owning user is deleted.
 
 The final Day 2 test result was:
 
@@ -262,25 +262,25 @@ The TypeScript check passed successfully with no errors at the end of Day 2.
 
 ### Completed
 
-* Created the Laravel project.
-* Configured the local MySQL database.
-* Ran the initial database migrations.
-* Verified the authentication flow.
-* Added the Internship Progress section to the dashboard.
-* Added typed Vue component props using TypeScript.
-* Connected the authenticated user's name to the Internship Progress component.
-* Added automated dashboard tests.
-* Added TypeScript checking.
-* Added Day 1 documentation and screenshots.
+- Created the Laravel project.
+- Configured the local MySQL database.
+- Ran the initial database migrations.
+- Verified the authentication flow.
+- Added the Internship Progress section to the dashboard.
+- Added typed Vue component props using TypeScript.
+- Connected the authenticated user's name to the Internship Progress component.
+- Added automated dashboard tests.
+- Added TypeScript checking.
+- Added Day 1 documentation and screenshots.
 
 ### Day 1 Testing
 
 The Day 1 test suite completed with:
 
-* **24 tests passed**
-* **3 tests skipped**
-* **0 tests failed**
-* **65 assertions**
+- **24 tests passed**
+- **3 tests skipped**
+- **0 tests failed**
+- **65 assertions**
 
 The TypeScript check also passed successfully.
 
@@ -288,34 +288,34 @@ The TypeScript check also passed successfully.
 
 ### Completed
 
-* Defined the Project data requirements in `docs/PROJECTS-SPEC.md`.
-* Added the User–Project database relationship.
-* Created the Project model and migration.
-* Added the required Project fields and database constraints.
-* Added the `projects()` relationship to the User model.
-* Added the `user()` relationship to the Project model.
-* Added a Project factory with realistic development data.
-* Added a database seeder with one demo user and ten sample projects.
-* Added the authenticated `/projects` route.
-* Created the Project controller.
-* Created the Projects Vue page using TypeScript.
-* Added the Projects navigation item to the sidebar.
-* Displayed the project title, content type, status, due date, and total project count.
-* Added a clear empty state for users without projects.
-* Ensured projects are retrieved through the authenticated user's relationship.
-* Added feature tests for authentication, ownership, ordering, and empty-state behavior.
-* Verified the complete Laravel test suite.
-* Verified the Vue TypeScript check.
+- Defined the Project data requirements in `docs/PROJECTS-SPEC.md`.
+- Added the User–Project database relationship.
+- Created the Project model and migration.
+- Added the required Project fields and database constraints.
+- Added the `projects()` relationship to the User model.
+- Added the `user()` relationship to the Project model.
+- Added a Project factory with realistic development data.
+- Added a database seeder with one demo user and ten sample projects.
+- Added the authenticated `/projects` route.
+- Created the Project controller.
+- Created the Projects Vue page using TypeScript.
+- Added the Projects navigation item to the sidebar.
+- Displayed the project title, content type, status, due date, and total project count.
+- Added a clear empty state for users without projects.
+- Ensured projects are retrieved through the authenticated user's relationship.
+- Added feature tests for authentication, ownership, ordering, and empty-state behavior.
+- Verified the complete Laravel test suite.
+- Verified the Vue TypeScript check.
 
 ### Day 2 Testing
 
 The final Day 2 verification completed with:
 
-* **33 tests passed**
-* **3 tests skipped**
-* **0 tests failed**
-* **114 assertions**
-* **TypeScript check passed**
+- **33 tests passed**
+- **3 tests skipped**
+- **0 tests failed**
+- **114 assertions**
+- **TypeScript check passed**
 
 ## Screenshots
 

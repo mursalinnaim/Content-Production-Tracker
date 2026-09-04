@@ -39,8 +39,6 @@
 
 ## End Time
 
-
-
 ## Day 2 work log
 
 ### Start Time
@@ -49,8 +47,8 @@
 
 ### Starting Branch and Commit
 
-* Branch: `feature/project-foundation`
-* Starting commit: `7b572f4`
+- Branch: `feature/project-foundation`
+- Starting commit: `7b572f4`
 
 ### Test Command
 
@@ -60,10 +58,10 @@ php artisan test
 
 ### Initial Test Result
 
-* 24 tests passed
-* 3 tests skipped
-* 0 tests failed
-* 65 assertions
+- 24 tests passed
+- 3 tests skipped
+- 0 tests failed
+- 65 assertions
 
 ### Setup Errors
 
@@ -71,19 +69,19 @@ No setup errors occurred at the start of Day 2.
 
 ### Tasks Completed
 
-* Created the project data specification in `docs/PROJECTS-SPEC.md`.
-* Added the database relationship between users and projects.
-* Created the `Project` model and migration.
-* Added the `projects()` relationship to the `User` model.
-* Added project factory data using the required content types and statuses.
-* Added a development demo user and sample projects through the database seeder.
-* Added the Projects controller and authenticated `/projects` route.
-* Added the Projects Vue page using Vue 3 and TypeScript.
-* Added the Projects navigation item to the application sidebar.
-* Displayed project title, content type, status, due date, and project count.
-* Added an empty state for users without projects.
-* Added feature tests for authentication, ownership, ordering, and the empty state.
-* Verified the full test suite.
+- Created the project data specification in `docs/PROJECTS-SPEC.md`.
+- Added the database relationship between users and projects.
+- Created the `Project` model and migration.
+- Added the `projects()` relationship to the `User` model.
+- Added project factory data using the required content types and statuses.
+- Added a development demo user and sample projects through the database seeder.
+- Added the Projects controller and authenticated `/projects` route.
+- Added the Projects Vue page using Vue 3 and TypeScript.
+- Added the Projects navigation item to the application sidebar.
+- Displayed project title, content type, status, due date, and project count.
+- Added an empty state for users without projects.
+- Added feature tests for authentication, ownership, ordering, and the empty state.
+- Verified the full test suite.
 
 ### What I Learned
 
@@ -95,10 +93,11 @@ The project due date was initially displayed in the browser as a full ISO timest
 
 ### Final Test Result
 
-* 33 tests passed
-* 3 tests skipped
-* 0 tests failed
-* 114 assertions
+- 33 tests passed
+- 3 tests skipped
+- 0 tests failed
+- 114 assertions
 
 ## End Time
+
 1 am, Friday, September 4, 2026
