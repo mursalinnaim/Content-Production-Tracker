@@ -1,28 +1,4 @@
-# AI Usage Log
-
-## Entry 1
-
-### Task
-
-What I wanted to do.
-
-### Prompt
-
-What I asked the AI.
-
-### Suggested Solution
-
-What the AI suggested.
-
-### My Verification
-
-How I checked the suggestion.
-
-### My Changes
-
-What I changed and why.
-
-# AI Usage Log
+# Day 1
 
 ## Entry 1
 
@@ -89,3 +65,71 @@ I logged in with the test account and confirmed that the correct user name appea
 ### My Changes
 
 I replaced the hardcoded student name with the authenticated user's name, added the dashboard feature test, and corrected an initial Inertia test assertion after it failed.
+
+# Day 2
+
+## Entry 4
+
+### Task
+
+Create the Project database model, migration, factory, and seed data.
+
+### Prompt
+
+I asked the AI how to implement the Project model and migration, define the User and Project relationships, and create realistic factory and seed data.
+
+### Suggested Solution
+
+The AI suggested creating a `Project` model with a migration, adding a foreign key from projects to users with cascade deletion, adding the required relationships and casts, and using a factory and seeder to generate development data.
+
+### My Verification
+
+I ran the migrations and seeded a fresh local database. I also ran the test suite and verified that the model relationships and cascade deletion worked.
+
+### My Changes
+
+I created the Project model and migration, updated the User model, created `ProjectFactory`, and updated `DatabaseSeeder` with one demo user and ten sample projects.
+
+## Entry 5
+
+### Task
+
+Test Project listing, authentication, ownership, ordering, and empty state.
+
+### Prompt
+
+I asked the AI to create Pest feature tests covering the Project listing requirements from the assignment.
+
+### Suggested Solution
+
+The AI suggested tests for guest access, authenticated access, project ownership, newest-first ordering, and an empty project list.
+
+### My Verification
+
+I ran the focused Project tests and then the full Laravel test suite. The final result was 33 tests passed, 3 skipped, 0 failed, with 114 assertions.
+
+### My Changes
+
+I added the Project feature tests and verified that the full test suite passed.
+
+## Entry 6
+
+### Task
+
+Review the Project page and make sure the empty state follows the Day 2 assignment.
+
+### Prompt
+
+I asked the AI to review the Project page and identify any missing requirements from the assignment.
+
+### Suggested Solution
+
+The AI suggested making the empty state more useful by explaining what happens when the user has no projects.
+
+### My Decision
+
+I changed the empty state message rather than adding a project creation form. Project creation is outside the scope of Day 2, so adding a create form would have introduced functionality that was not required by the assignment.
+
+### My Verification
+
+I ran the full project quality checks after the change. PHP linting, PHPStan, TypeScript checking, the Vite build, the Laravel test suite, and the frontend formatting/linting checks all passed.
