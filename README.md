@@ -212,11 +212,7 @@ erDiagram
 
 Each project belongs to exactly one user through the `user_id` foreign key. A user can own multiple projects, allowing the application to retrieve and display only the projects belonging to the authenticated user.
 
-## Running the Tests
 
-And make the test instructions:
-
-````markdown
 ## Running the Tests
 
 For a clean checkout, install the dependencies, build the frontend assets, and then run the test suite:
@@ -227,7 +223,11 @@ npm ci
 npm run build
 php artisan test
 ```
-````
+If the project dependencies and frontend assets are already built, you can run the test suite directly:
+
+```bash
+php artisan test
+```
 
 The test suite covers:
 
