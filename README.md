@@ -45,7 +45,7 @@ composer install
 ### 3. Install frontend dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 ### 4. Create the environment file
@@ -214,11 +214,20 @@ Each project belongs to exactly one user through the `user_id` foreign key. A us
 
 ## Running the Tests
 
-Run the Laravel test suite:
+And make the test instructions:
+
+````markdown
+## Running the Tests
+
+For a clean checkout, install the dependencies, build the frontend assets, and then run the test suite:
 
 ```bash
+composer install
+npm ci
+npm run build
 php artisan test
 ```
+````
 
 The test suite covers:
 

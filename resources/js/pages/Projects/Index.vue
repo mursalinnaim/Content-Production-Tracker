@@ -33,7 +33,8 @@ defineProps<Props>();
         >
             <h2 class="text-lg font-medium">No projects yet</h2>
             <p class="text-muted-foreground mt-2 text-sm">
-                You don't have any projects yet.
+                You don't have any projects yet. Projects assigned to your
+                account will appear here when they are available.
             </p>
         </div>
 

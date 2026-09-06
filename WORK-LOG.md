@@ -1,5 +1,7 @@
 # Day 1 Work Log
 
+6 pm, Thursday, September 2, 2026
+
 ## Start Time
 
 ## Environment
@@ -37,37 +39,48 @@
 
 ## What I Learned
 
+I learned how a Laravel application is structured and how the different parts of the project fit together. I also gained a better understanding of how Laravel, Vue, and Inertia work together, especially how data is passed from the Laravel backend through Inertia to Vue components and displayed in the frontend. I also became more familiar with Laravel's project structure, routing, authentication, and the overall design of the application.
+
 ## End Time
 
-## Day 2 work log
+11 pm, Thursday, September 2, 2026
 
-### Start Time
+# Day 2 work log
+
+## Start Time
 
 8:00 pm, Thursday, September 3, 2026
 
-### Starting Branch and Commit
+## Starting Branch and Commit
 
 - Branch: `feature/project-foundation`
 - Starting commit: `7b572f4`
 
-### Test Command
+## Test Command
 
 ```text
 php artisan test
 ```
 
-### Initial Test Result
+## Initial Test Result
 
-- 24 tests passed
-- 3 tests skipped
-- 0 tests failed
-- 65 assertions
+- `php artisan test`
+  PASS Tests\Feature\DashboardTest
+  ✓ guests are redirected to the login page 0.03s
+  ✓ authenticated users can visit the dashboard 0.05s
+  ✓ authenticated users can see Internship Progress on the dashboard
+    - 24 tests passed
+    - 3 tests skipped because two-factor authentication is not enabled
+    - 0 tests failed
+    - 65 assertions
+- `npm run type-check`
+    - Passed with no TypeScript errors
 
-### Setup Errors
+## Setup Errors
 
 No setup errors occurred at the start of Day 2.
 
-### Tasks Completed
+## Tasks Completed
 
 - Created the project data specification in `docs/PROJECTS-SPEC.md`.
 - Added the database relationship between users and projects.
@@ -83,20 +96,36 @@ No setup errors occurred at the start of Day 2.
 - Added feature tests for authentication, ownership, ordering, and the empty state.
 - Verified the full test suite.
 
-### What I Learned
+## What I Learned
 
 I learned how Laravel model relationships connect the `User` and `Project` models, how factories and seeders can create realistic development data, and how Inertia passes typed project data from Laravel to Vue. I also learned how to use the authenticated user when querying projects so that users only receive their own data.
 
-### Problems and Solutions
+## Problems and Solutions
 
 The project due date was initially displayed in the browser as a full ISO timestamp such as `2026-09-18T00:00:00.000000Z`. The database and factory were working correctly, but Laravel's date cast serialized the value as a date-time string for Inertia. I formatted the value in Vue so that only the `YYYY-MM-DD` portion is displayed.
 
-### Final Test Result
+## Final Test Result
 
-- 33 tests passed
-- 3 tests skipped
-- 0 tests failed
-- 114 assertions
+- `php artisan test`
+  PASS Tests\Feature\DashboardTest
+  ✓ guests are redirected to the login page 0.03s
+  ✓ authenticated users can visit the dashboard 0.05s
+  ✓ authenticated users can see Internship Progress on the dashboard
+  PASS Tests\Feature\ProjectTest
+  ✓ it allows a user to have many projects
+  ✓ it allows a project to belong to a user
+  ✓ it deletes a users projects when the user is deleted
+  ✓ it blocks guests from accessing the projects page
+  ✓ it allows authenticated users to access the projects page projects
+  ✓ it does not show projects belonging to another user
+  ✓ it shows projects newest first
+  ✓ it shows an empty projects list when the user has no projects
+    - 33 tests passed
+    - 3 tests skipped
+    - 0 tests failed
+    - 114 assertions
+- `npm run type-check`
+    - Passed with no TypeScript errors
 
 ## End Time
 

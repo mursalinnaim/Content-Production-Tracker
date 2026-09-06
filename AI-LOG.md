@@ -1,28 +1,4 @@
-# AI Usage Log
-
-## Entry 1
-
-### Task
-
-What I wanted to do.
-
-### Prompt
-
-What I asked the AI.
-
-### Suggested Solution
-
-What the AI suggested.
-
-### My Verification
-
-How I checked the suggestion.
-
-### My Changes
-
-What I changed and why.
-
-# AI Usage Log
+# Day 1
 
 ## Entry 1
 
@@ -90,6 +66,8 @@ I logged in with the test account and confirmed that the correct user name appea
 
 I replaced the hardcoded student name with the authenticated user's name, added the dashboard feature test, and corrected an initial Inertia test assertion after it failed.
 
+# Day 2
+
 ## Entry 4
 
 ### Task
@@ -133,3 +111,25 @@ I ran the focused Project tests and then the full Laravel test suite. The final 
 ### My Changes
 
 I added the Project feature tests and verified that the full test suite passed.
+
+## Entry 6
+
+### Task
+
+Review the Project page and make sure the empty state follows the Day 2 assignment.
+
+### Prompt
+
+I asked the AI to review the Project page and identify any missing requirements from the assignment.
+
+### Suggested Solution
+
+The AI suggested making the empty state more useful by explaining what happens when the user has no projects.
+
+### My Decision
+
+I changed the empty state message rather than adding a project creation form. Project creation is outside the scope of Day 2, so adding a create form would have introduced functionality that was not required by the assignment.
+
+### My Verification
+
+I ran the full project quality checks after the change. PHP linting, PHPStan, TypeScript checking, the Vite build, the Laravel test suite, and the frontend formatting/linting checks all passed.
