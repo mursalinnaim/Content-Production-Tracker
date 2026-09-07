@@ -120,16 +120,118 @@ Review the Project page and make sure the empty state follows the Day 2 assignme
 
 ### Prompt
 
-I asked the AI to review the Project page and identify any missing requirements from the assignment.
+I asked the AI to review the Project page against the Day 2 assignment and suggest any improvements that could make the page more useful.
 
 ### Suggested Solution
 
-The AI suggested making the empty state more useful by explaining what happens when the user has no projects.
+The AI suggested adding a **Create Project** button to the empty state so that users could create a project when they did not have any projects.
 
 ### My Decision
 
-I changed the empty state message rather than adding a project creation form. Project creation is outside the scope of Day 2, so adding a create form would have introduced functionality that was not required by the assignment.
+I rejected the suggestion to add a **Create Project** button.
+
+The Day 2 assignment only required displaying the user's projects and providing an appropriate empty state. Project creation was not part of the assignment, so adding a creation flow would introduce extra functionality and increase the scope of the task.
+
+Instead, I kept the empty state focused on explaining that the user currently has no projects.
 
 ### My Verification
 
-I ran the full project quality checks after the change. PHP linting, PHPStan, TypeScript checking, the Vite build, the Laravel test suite, and the frontend formatting/linting checks all passed.
+I checked the empty state in the browser and ran the project quality checks after the change. The relevant tests, TypeScript checks, formatting checks, and other project checks passed.
+
+# Day 3
+
+## Entry 7 — Token Usage Storage
+
+### Task: Decide how token usage should be stored for AI generations.
+
+### Prompt:
+
+I asked AI how to handle input and output token usage for each generated content plan.
+
+### Suggested Solution:
+
+AI suggested that token usage could be stored in a separate usage table related to each generation.
+
+### My Decision:
+
+I decided not to create a separate token usage table. Since input and output token counts belong directly to an individual content generation, I stored `input_tokens` and `output_tokens` directly in the `content_generations` table. This also matched the assignment requirements without adding unnecessary database complexity.
+
+### Verification:
+
+Updated the migration and model, then verified that token usage was correctly saved from the provider response and covered by automated tests.
+
+### Why My Final Approach Was Safer or Clearer
+
+AI suggested storing token usage in a separate table. After checking the assignment's required `content_generations` fields and testing the generation flow, I decided to store `input_tokens` and `output_tokens` directly on `content_generations`.
+
+This is clearer because token usage belongs to a specific generation, so keeping it with that generation avoids an unnecessary extra relationship and database table. It also keeps the implementation closer to the assignment requirements and makes the generation record easier to inspect.
+
+## Entry 8 — AI Generation Architecture
+
+### Task: Implement the AI content generation flow and understand how the controller, service, validation, and database responsibilities should be separated.
+
+### Prompt:
+
+I asked AI how to structure the implementation so the controller could handle the request and ownership while the AI-specific API logic, structured response validation, and generation metadata remained separated.
+
+### Suggested Solution:
+
+AI suggested using a dedicated `OpenAIService` for building the prompt and communicating with the OpenAI API, a `ContentPlan` data object for validating the structured AI response, and a `ContentPlanResult` object for returning the validated plan together with the prompt, model, and token usage.
+
+### My Decision:
+
+I followed this structure because it made the responsibilities clearer instead of putting the entire AI implementation inside the controller.
+
+During implementation, I also decided to temporarily test the same generation flow with both OpenAI and Gemini. The assignment ultimately required a single provider, but using Gemini temporarily allowed me to test the generation flow while my OpenAI API credit was not yet available.
+
+### Verification:
+
+Implemented the service and data objects, tested the structured response handling, persistence, and token usage, and verified the flow using fake provider responses in the automated tests.
+
+## Entry 9 — Testing Gemini and OpenAI
+
+### Task: Test the AI generation feature with real provider requests before finalizing the implementation.
+
+### Prompt:
+
+I asked AI for help implementing the AI generation flow and testing the provider integration while keeping the provider logic separate from the controller.
+
+### Suggested Solution:
+
+AI's main recommendation was to use OpenAI as the provider and keep the API integration behind a dedicated service.
+
+### My Decision:
+
+For development testing, I chose to temporarily support both Gemini and OpenAI instead of immediately using only OpenAI. I used Gemini while waiting for OpenAI API credit and used it to verify that the prompt, structured response, validation, database persistence, token usage, and Vue rendering were working correctly.
+
+Once OpenAI credit became available, I tested the final flow with OpenAI as required by the assignment.
+
+After confirming the implementation worked, I removed the Gemini provider, Gemini configuration, and Gemini-specific code/tests so the final implementation uses only OpenAI.
+
+### Why my final approach is safer or clearer:
+
+Using Gemini temporarily reduced the risk of consuming paid OpenAI credits while I was still debugging the generation flow. Once the flow was verified, removing Gemini made the final implementation clearer and closer to the assignment, which specifically requires a single AI provider. The final code therefore has one provider, one configuration path, and one service responsible for AI generation.
+
+### Verification:
+
+Verified the real generation flow with both providers during development, then removed Gemini and confirmed the final OpenAI-only implementation passed the automated tests, TypeScript check, and project CI checks.
+
+## Entry 10 — Safe AI Failures
+
+### Task: Handle provider failures and invalid AI responses without exposing sensitive information.
+
+### Prompt:
+
+I asked AI how the application should handle OpenAI failures, empty responses, invalid JSON, and structurally invalid content while keeping provider details and credentials out of the browser.
+
+### Suggested Solution:
+
+AI suggested using controlled application exceptions, storing a safe error code for failed generations, and returning a generic error message to the frontend instead of exposing the provider response or internal exception details.
+
+### My Decision:
+
+I followed this approach. Failed generations store a safe error code in `content_generations`, while the raw provider response is not stored or returned to the browser. The frontend displays a generic message when generation fails.
+
+### Verification:
+
+Added fake-provider tests for HTTP failures, empty responses, invalid JSON, and structurally invalid responses. Verified that the tests pass and that provider error details and API credentials are not exposed.

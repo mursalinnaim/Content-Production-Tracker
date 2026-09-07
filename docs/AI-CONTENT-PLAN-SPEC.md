@@ -2,9 +2,9 @@
 
 ## 1. Overview
 
-The Content Production Tracker will provide an AI-powered feature that generates a structured content plan for a project.
+The Content Production Tracker provides an AI-powered feature that generates a structured content plan for a project.
 
-The feature will take information already stored in the project and send it to the OpenAI API through the Laravel backend. The generated content plan will then be validated, stored, and displayed to the authenticated user.
+The feature takes information already stored in the project and sends it to the OpenAI API through the Laravel backend. The generated content plan is validated, stored, and displayed to the authenticated user.
 
 The AI feature is intended to help users turn a project brief into a practical content production plan.
 
@@ -21,6 +21,8 @@ The feature should:
 - Validate the AI response before storing it.
 - Store generated plans so they can be viewed later.
 - Ensure users can only generate plans for projects they own.
+- Record successful and failed generation attempts safely.
+- Record provider token usage when available.
 - Provide clear error handling when generation fails.
 
 ---
@@ -30,15 +32,15 @@ The feature should:
 The expected user flow is:
 
 1. The user logs into the application.
-2. The user opens one of their projects.
-3. The user selects **Generate AI Content Plan**.
+2. The user views their projects.
+3. The user selects **Generate Content Plan** for one of their projects.
 4. Laravel verifies that the authenticated user owns the project.
-5. Laravel collects the required project information.
+5. Laravel checks that the project contains the required information.
 6. Laravel builds the AI prompt.
 7. Laravel sends the request to OpenAI.
 8. OpenAI returns a structured content plan.
 9. Laravel validates the response.
-10. Laravel stores the generated plan.
+10. Laravel stores the generation.
 11. The frontend displays the generated content plan to the user.
 
 The OpenAI API must never be called directly from the Vue frontend.
@@ -56,6 +58,17 @@ The AI prompt may use the following fields from the project:
 
 No unrelated user or system data should be included in the AI prompt.
 
+The prompt must not include:
+
+- User email
+- User password
+- User ID
+- Session information
+- API keys
+- Authentication headers
+- Server configuration
+- Other unrelated project or application data
+
 ### Example Input
 
 ```text
@@ -64,9 +77,11 @@ Title: Summer Product Campaign
 Content Type: Social Media Campaign
 
 Brief:
+
 Create a campaign promoting the company's new summer product line.
 
 Notes:
+
 Focus on short-form video and Instagram content.
 ```
 
@@ -172,7 +187,7 @@ array<string>
 
 ## 6. Prompt Requirements
 
-The Laravel backend will construct the prompt using the project's:
+The Laravel backend constructs the prompt using the project's:
 
 - Title
 - Content type
@@ -185,46 +200,51 @@ The prompt should instruct the AI to:
 - Base the plan only on the supplied project information.
 - Avoid inventing specific facts about the project.
 - Clearly identify missing information.
-- Return only valid JSON.
-- Follow the required output structure.
+- Return the required structured JSON format.
+- Follow the required output schema.
 
-The prompt should not expose the OpenAI API key or any server configuration.
+The OpenAI API key and other server configuration must never be included in the prompt.
+
+The prompt is stored with the generation so the input used to produce a result can be reviewed later. It must not contain secrets or unrelated private information.
 
 ---
 
 ## 7. API Architecture
 
-The feature will use the following architecture:
+The feature uses the following architecture:
 
 ```text
 Vue Frontend
      |
      | POST /projects/{project}/generations
-     ↓
+     v
 Laravel Controller
      |
-     ↓
+     v
 Project Ownership Check
      |
-     ↓
+     v
+Required Project Data Check
+     |
+     v
 OpenAI Service
      |
-     ↓
-OpenAI API
+     v
+OpenAI Responses API
      |
-     ↓
+     v
 Structured JSON Response
      |
-     ↓
+     v
 Response Validation
      |
-     ↓
+     v
 ContentGeneration Model
      |
-     ↓
+     v
 Database
      |
-     ↓
+     v
 Vue Frontend
 ```
 
@@ -234,11 +254,15 @@ The Laravel backend is responsible for:
 
 - Authentication
 - Authorization
+- Project validation
 - Prompt construction
 - OpenAI communication
 - Response validation
 - Database storage
+- Token usage extraction
 - Error handling
+
+The OpenAI integration is isolated in the `OpenAIService` rather than being implemented directly inside the controller.
 
 ---
 
@@ -249,6 +273,8 @@ Only authenticated users may generate content plans.
 Before generating a plan, Laravel must verify that the requested project belongs to the authenticated user.
 
 A user must not be able to generate or access AI generations belonging to another user's project by modifying the project ID in the request.
+
+Project ownership is checked before making any OpenAI request.
 
 Unauthorized requests should return an appropriate HTTP error response.
 
@@ -262,6 +288,7 @@ Example:
 
 ```env
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 The API key must not be:
@@ -271,32 +298,54 @@ The API key must not be:
 - Exposed to the browser.
 - Committed to Git.
 - Included in API responses.
+- Included in prompts.
+- Written to application logs.
 
-Laravel configuration should read the API key from the environment.
+Laravel reads these values through `config/services.php`.
+
+The OpenAI model is configurable and must not be hard-coded in the service request.
+
+The OpenAI request uses the Responses API with structured JSON schema output.
+
+A reasonable request timeout is configured and automatic retries are not used.
 
 ---
 
 ## 10. Generation Storage
 
-Each successful AI generation should be stored in the database.
+Each generation attempt is stored in the `content_generations` database table.
 
-A generation should be associated with the project that was used to create it.
+A generation is associated with the project that was used to create it.
 
-The stored generation should contain enough information to retrieve and display the generated plan later.
+The current database structure contains:
 
-At minimum, the stored data should include:
+| Field           | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `id`            | Generation identifier                                     |
+| `project_id`    | Associated project                                        |
+| `status`        | Generation status, such as `completed` or `failed`        |
+| `prompt`        | Exact prompt sent to OpenAI                               |
+| `response`      | Validated structured content plan                         |
+| `model`         | OpenAI model used                                         |
+| `input_tokens`  | Input token usage when provided                           |
+| `output_tokens` | Output token usage when provided                          |
+| `error_code`    | Safe internal error classification for failed generations |
+| `created_at`    | Creation timestamp                                        |
+| `updated_at`    | Last update timestamp                                     |
 
-- Project ID
-- Generated content
-- Creation timestamp
+Successful generations store the validated content plan in the `response` JSON column.
 
-The exact database structure may be determined during implementation.
+Failed generations store a safe error code instead of the raw provider response.
+
+Provider response bodies, API keys, authentication headers, and other sensitive information must not be stored.
+
+No separate token-usage table is required for this version. Token usage is stored directly on `content_generations`.
 
 ---
 
 ## 11. Validation
 
-The Laravel backend must validate the AI response before storing it.
+The Laravel backend must validate the AI response before storing it as a successful generation.
 
 The response must contain:
 
@@ -312,17 +361,21 @@ risks_or_missing_information
 The following types must be enforced:
 
 ```text
-suggested_title          → string
-content_brief            → string
-outline                  → array
-outline.*.heading        → string
-outline.*.purpose        → string
-key_points               → array of strings
-production_tasks         → array of strings
-risks_or_missing_information → array of strings
+suggested_title                  → string
+content_brief                    → string
+outline                          → array
+outline.*.heading                → string
+outline.*.purpose                → string
+key_points                       → array of strings
+production_tasks                 → array of strings
+risks_or_missing_information     → array of strings
 ```
 
+The structured response is converted into the `ContentPlan` data object.
+
 Invalid or malformed AI responses must not be saved as successful generations.
+
+The implementation uses both OpenAI's structured output schema and application-level validation so that the data is validated before persistence.
 
 ---
 
@@ -335,26 +388,48 @@ Possible failures include:
 - User is not authenticated.
 - User does not own the requested project.
 - Project does not exist.
+- Project is missing required information.
 - OpenAI API request fails.
 - OpenAI API times out.
 - OpenAI returns invalid JSON.
+- OpenAI returns an empty response.
 - AI response does not match the required structure.
 - API key is missing or incorrectly configured.
+- An unexpected generation error occurs.
 
-The user should receive a clear error message without exposing sensitive server or API information.
+Expected generation failures are converted into controlled application errors.
+
+Failed generations are stored with a safe status and error code.
+
+The user receives a generic message such as:
+
+```text
+The content plan could not be generated. Please try again later.
+```
+
+The user-facing response must never expose:
+
+- OpenAI provider response bodies
+- API keys
+- Authentication headers
+- Stack traces
+- Internal exception details
+- Server configuration
 
 ---
 
 ## 13. Frontend Requirements
 
-The Vue frontend should provide a way for the user to start generation.
+The Vue frontend provides a way for the user to start generation for each displayed project.
 
 The UI should:
 
-1. Show a **Generate AI Content Plan** action.
+1. Show a **Generate Content Plan** action.
 2. Show a loading state while generation is in progress.
-3. Display an error message if generation fails.
-4. Display the generated content plan when successful.
+3. Disable the generation action while the request is running.
+4. Prevent repeated generation clicks during an active request.
+5. Display a safe error message if generation fails.
+6. Display the generated content plan when successful.
 
 The generated plan should clearly display:
 
@@ -365,7 +440,11 @@ The generated plan should clearly display:
 - Production tasks
 - Risks or missing information
 
-The frontend should not contain any OpenAI credentials.
+The frontend uses TypeScript types for the project and generated content structures.
+
+The frontend must not contain any OpenAI credentials.
+
+AI output is displayed as text and must not be rendered as unsafe HTML or raw HTML from the provider.
 
 ---
 
@@ -376,10 +455,14 @@ The implementation must follow these security requirements:
 - OpenAI requests must be made server-side.
 - API keys must remain server-side.
 - Project ownership must be checked before generation.
+- Ownership failures must occur before an OpenAI request is made.
 - User input must be handled safely.
 - AI output must be validated before storage.
 - Sensitive API errors must not be exposed to users.
-- Users must not be able to access another user's generated content.
+- Raw provider error bodies must not be stored.
+- Users must not be able to generate content for another user's project.
+- Users must not be able to access another user's generated content through project ID manipulation.
+- Secrets must not be included in prompts, responses, logs, or committed source code.
 
 ---
 
@@ -390,15 +473,22 @@ The feature is considered complete when:
 - [ ] An authenticated user can request an AI content plan for their own project.
 - [ ] An unauthenticated user cannot generate a plan.
 - [ ] A user cannot generate a plan for another user's project.
+- [ ] Ownership is checked before the provider request.
+- [ ] A project missing required information is rejected before the provider request.
 - [ ] Laravel sends the project information to OpenAI.
 - [ ] Only the required project fields are included in the prompt.
+- [ ] Unrelated user data and secrets are excluded from the prompt.
 - [ ] The OpenAI API key remains server-side.
+- [ ] The OpenAI model is configurable.
 - [ ] The AI response follows the defined JSON structure.
 - [ ] Laravel validates the AI response.
 - [ ] Valid generations are stored in the database.
+- [ ] Failed generations are stored safely.
+- [ ] Token usage is stored when provided by OpenAI.
 - [ ] The generated plan can be displayed in Vue.
 - [ ] Loading and error states are handled.
 - [ ] Invalid AI responses are not stored as successful generations.
+- [ ] Automated tests use a fake HTTP provider and do not make real OpenAI requests.
 
 ---
 
@@ -458,6 +548,7 @@ The first version of this feature will not include:
 - Multiple AI providers.
 - Streaming AI responses.
 - Complex AI conversation history.
+- Multiple AI provider fallback or routing.
 
 These features may be considered in future versions.
 
@@ -467,7 +558,7 @@ These features may be considered in future versions.
 
 The implementation should remain simple and consistent with the existing application architecture.
 
-The AI feature should be separated into clear responsibilities:
+The AI feature is separated into clear responsibilities:
 
 ```text
 Controller
@@ -481,4 +572,10 @@ ContentGeneration Model
 Database
 ```
 
+The `ContentPlan` data object is responsible for representing and validating the required structured content plan.
+
+The `ContentPlanResult` data object carries the validated content plan together with generation metadata such as the prompt, model, and token usage.
+
 The goal is to add the AI functionality without unnecessarily complicating the existing Content Production Tracker.
+
+The first version intentionally uses a single AI provider, OpenAI, and does not introduce provider abstraction or multi-provider support.
