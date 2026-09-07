@@ -50,24 +50,16 @@ class OpenAIService
                                 'type' => 'object',
                                 'additionalProperties' => false,
                                 'properties' => [
-                                    'suggested_title' => [
-                                        'type' => 'string',
-                                    ],
-                                    'content_brief' => [
-                                        'type' => 'string',
-                                    ],
+                                    'suggested_title' => ['type' => 'string'],
+                                    'content_brief' => ['type' => 'string'],
                                     'outline' => [
                                         'type' => 'array',
                                         'items' => [
                                             'type' => 'object',
                                             'additionalProperties' => false,
                                             'properties' => [
-                                                'heading' => [
-                                                    'type' => 'string',
-                                                ],
-                                                'purpose' => [
-                                                    'type' => 'string',
-                                                ],
+                                                'heading' => ['type' => 'string'],
+                                                'purpose' => ['type' => 'string'],
                                             ],
                                             'required' => [
                                                 'heading',
@@ -77,21 +69,15 @@ class OpenAIService
                                     ],
                                     'key_points' => [
                                         'type' => 'array',
-                                        'items' => [
-                                            'type' => 'string',
-                                        ],
+                                        'items' => ['type' => 'string'],
                                     ],
                                     'production_tasks' => [
                                         'type' => 'array',
-                                        'items' => [
-                                            'type' => 'string',
-                                        ],
+                                        'items' => ['type' => 'string'],
                                     ],
                                     'risks_or_missing_information' => [
                                         'type' => 'array',
-                                        'items' => [
-                                            'type' => 'string',
-                                        ],
+                                        'items' => ['type' => 'string'],
                                     ],
                                 ],
                                 'required' => [
@@ -118,7 +104,7 @@ class OpenAIService
 
             $content = $response->json('output.0.content.0.text');
 
-            if (! is_string($content) || $content === '') {
+            if (! is_string($content) || trim($content) === '') {
                 throw new ContentGenerationException(
                     'OpenAI returned an empty response.',
                     $prompt,
@@ -152,7 +138,7 @@ class OpenAIService
             throw $exception;
         } catch (Throwable $exception) {
             throw new ContentGenerationException(
-                $exception->getMessage(),
+                'Content generation failed.',
                 $prompt,
                 $model,
                 'generation_failed',

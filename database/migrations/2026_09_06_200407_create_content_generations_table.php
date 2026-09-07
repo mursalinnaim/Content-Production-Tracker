@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
             $table->string('status');
             $table->text('prompt');
-            $table->json('content')->nullable();
-            $table->string('model');
+            $table->json('response')->nullable();
+            $table->string('model')->nullable();
             $table->unsignedInteger('input_tokens')->nullable();
             $table->unsignedInteger('output_tokens')->nullable();
             $table->string('error_code')->nullable();

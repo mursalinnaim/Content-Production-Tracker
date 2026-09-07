@@ -15,7 +15,9 @@ class ContentGenerationFactory extends Factory
     {
         return [
             'project_id' => Project::factory(),
-            'content' => [
+            'status' => 'completed',
+            'prompt' => fake()->paragraph(),
+            'response' => [
                 'suggested_title' => fake()->sentence(4),
                 'content_brief' => fake()->paragraph(),
                 'outline' => [
@@ -36,8 +38,10 @@ class ContentGenerationFactory extends Factory
                     fake()->sentence(),
                 ],
             ],
+            'model' => 'gpt-4o-mini',
             'input_tokens' => fake()->numberBetween(100, 2000),
             'output_tokens' => fake()->numberBetween(100, 1000),
+            'error_code' => null,
         ];
     }
 }

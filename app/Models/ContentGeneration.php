@@ -16,7 +16,7 @@ class ContentGeneration extends Model
         'project_id',
         'status',
         'prompt',
-        'content',
+        'response',
         'model',
         'input_tokens',
         'output_tokens',
@@ -26,7 +26,7 @@ class ContentGeneration extends Model
     protected function casts(): array
     {
         return [
-            'content' => 'array',
+            'response' => 'array',
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
 

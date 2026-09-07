@@ -39,7 +39,7 @@ class ContentGenerationController extends Controller
                 'project_id' => $project->id,
                 'status' => 'completed',
                 'prompt' => $result->prompt,
-                'content' => $result->contentPlan->toArray(),
+                'response' => $result->contentPlan->toArray(),
                 'model' => $result->model,
                 'input_tokens' => $result->inputTokens,
                 'output_tokens' => $result->outputTokens,
@@ -60,13 +60,13 @@ class ContentGenerationController extends Controller
             report($exception);
 
             return response()->json([
-                'message' => 'Content generation failed.',
+                'message' => 'The content plan could not be generated. Please try again later.',
             ], 502);
         } catch (Throwable $exception) {
             report($exception);
 
             return response()->json([
-                'message' => 'Content generation failed.',
+                'message' => 'The content plan could not be generated. Please try again later.',
             ], 502);
         }
     }
