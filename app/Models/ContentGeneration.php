@@ -14,13 +14,22 @@ class ContentGeneration extends Model
 
     protected $fillable = [
         'project_id',
+        'status',
+        'prompt',
         'content',
+        'model',
+        'input_tokens',
+        'output_tokens',
+        'error_code',
     ];
 
     protected function casts(): array
     {
         return [
             'content' => 'array',
+            'input_tokens' => 'integer',
+            'output_tokens' => 'integer',
+
         ];
     }
 

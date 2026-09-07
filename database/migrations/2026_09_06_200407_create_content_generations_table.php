@@ -14,7 +14,13 @@ return new class extends Migration
         Schema::create('content_generations', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
-            $table->json('content');
+            $table->string('status');
+            $table->text('prompt');
+            $table->json('content')->nullable();
+            $table->string('model');
+            $table->unsignedInteger('input_tokens')->nullable();
+            $table->unsignedInteger('output_tokens')->nullable();
+            $table->string('error_code')->nullable();
             $table->timestamps();
         });
     }

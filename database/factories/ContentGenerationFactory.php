@@ -36,6 +36,8 @@ class ContentGenerationFactory extends Factory
                     fake()->sentence(),
                 ],
             ],
+            'input_tokens' => fake()->numberBetween(100, 2000),
+            'output_tokens' => fake()->numberBetween(100, 1000),
         ];
     }
 }
