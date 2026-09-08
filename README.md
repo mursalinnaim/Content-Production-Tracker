@@ -95,6 +95,151 @@ To create a fresh development database with the sample project data:
 php artisan migrate:fresh --seed
 ```
 
+## AI Content Plan
+
+The application includes an AI-powered content planning feature added during Day 3.
+
+Authenticated users can generate a structured content plan for projects they own. The AI plan is generated using the project's:
+
+- `title`
+- `content_type`
+- `brief`
+- `notes`, when present
+
+The application does not send the user's email, password, API key, session data, or unrelated project data to the AI provider.
+
+### Generated Content
+
+Each generated content plan contains:
+
+- Suggested title
+- Content brief
+- Outline
+- Key points
+- Production tasks
+- Risks or missing information
+
+The generated result is returned as structured JSON and validated by the Laravel application before being saved.
+
+### AI Architecture
+
+The generation request is handled entirely by the Laravel backend:
+
+```text
+Vue
+ ↓
+POST /projects/{project}/generations
+ ↓
+ContentGenerationController
+ ↓
+OpenAIService
+ ↓
+OpenAI Responses API
+ ↓
+Structured JSON
+ ↓
+ContentPlan validation
+ ↓
+ContentGeneration
+ ↓
+Database
+ ↓
+Vue
+```
+
+The OpenAI API key is never exposed to the browser.
+
+### Environment Configuration
+
+The AI feature requires the following environment variables in the local `.env` file:
+
+```env
+OPENAI_API_KEY=your-api-key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+The API key must remain local and must never be committed to Git.
+
+The application reads the OpenAI configuration through Laravel's `config/services.php`.
+
+For local development, use your own development API key with an appropriate spending limit.
+
+### Safe Local Setup
+
+After copying `.env.example` to `.env`, add your local OpenAI credentials:
+
+```env
+OPENAI_API_KEY=your-api-key
+OPENAI_MODEL=your-chosen-model
+```
+
+Never place the API key in Vue code, frontend environment variables, source control, screenshots, prompts, or logs.
+
+The automated test suite does not make real OpenAI requests.
+
+### Synchronous Generation
+
+Day 3 generation runs synchronously. The browser waits for the Laravel request to complete before receiving the generated content plan.
+
+Streaming, background jobs, queues, and asynchronous generation are outside the scope of the Day 3 implementation.
+
+### AI Generation Testing
+
+The OpenAI HTTP request is faked in the automated tests, so tests do not make real API requests or consume OpenAI credits.
+
+Run the focused AI generation tests with:
+
+```bash
+php artisan test tests/Feature/ContentGenerationTest.php
+```
+
+These tests cover authentication, project ownership, required project information, configured model, prompt contents, successful generation, token usage, provider failures, empty responses, invalid JSON, and structurally invalid responses.
+
+Run the complete test suite with:
+
+```bash
+php artisan test
+```
+
+### Generation Storage
+
+Generated content plans are stored in the `content_generations` table.
+
+Each generation records:
+
+- Project
+- Status
+- Prompt
+- Structured response
+- Model
+- Input token usage
+- Output token usage
+- Safe error code for failed generations
+- Timestamps
+
+Failed generations do not store the raw provider error response.
+
+### Security
+
+The AI implementation ensures that:
+
+- Only authenticated users can generate content plans.
+- Users can only generate plans for their own projects.
+- Project ownership is checked before making an OpenAI request.
+- API credentials remain server-side.
+- API credentials are not included in prompts or responses.
+- Provider error details are not exposed to users.
+- AI output is validated before being stored.
+- Automated tests do not make real provider requests.
+
+### AI Content Plan Screenshot
+
+The following screenshot demonstrates a successfully generated content plan using synthetic project data:
+
+![Generated Content Plan](docs/generated-content-plan.png)
+
+The screenshot uses synthetic development data and does not contain API credentials, authorization headers, private user information, or raw provider responses.
+
 ## Development-only Demo Account
 
 A demo account is included for local development and testing:
@@ -134,6 +279,7 @@ The application includes:
 - Authenticated dashboard
 - Internship Progress section
 - Project listing
+- AI content plan generation
 
 ## Projects
 
@@ -188,6 +334,7 @@ The relationship between users and projects is a one-to-many relationship:
 
 ```mermaid
 erDiagram
+
     USERS ||--o{ PROJECTS : owns
 
     USERS {
@@ -242,6 +389,24 @@ The test suite covers:
 - Users with no projects receive an empty project list.
 - Project model relationships work correctly.
 - Projects are deleted when their owning user is deleted.
+- Guests cannot generate content plans.
+- Users cannot generate content plans for another user's project.
+- Projects missing required information are rejected before an AI request.
+- AI prompts contain only the allowed project information.
+- Successful AI generations are saved correctly.
+- Input and output token usage are saved.
+- Provider failures are handled safely.
+- Empty and malformed provider responses are handled safely.
+
+### AI Fake-response Tests
+
+The AI generation tests use Laravel HTTP fakes instead of making real provider requests:
+
+```bash
+php artisan test tests/Feature/ContentGenerationTest.php
+```
+
+No OpenAI API credits are consumed by these automated tests.
 
 The final Day 2 test result was:
 
@@ -328,7 +493,7 @@ The final Day 2 verification completed with:
 
 ## Screenshots
 
-Screenshots demonstrating the authentication flow and dashboard are available in:
+Screenshots demonstrating the authentication flow, dashboard, projects, and AI content generation are available in:
 
 ```text
 docs/
@@ -345,3 +510,7 @@ docs/
 ### Projects
 
 ![Projects](docs/project.png)
+
+### Generated Content Plan
+
+![Generated Content Plan](docs/Generated_content.png)

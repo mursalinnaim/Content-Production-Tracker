@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContentGenerationController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     ])->name('dashboard');
     Route::get('/projects', [ProjectController::class, 'index'])
         ->name('projects.index');
+    Route::post(
+        '/projects/{project}/generations',
+        [ContentGenerationController::class, 'store']
+    )->name('projects.generations.store');
 });
 
 require __DIR__.'/settings.php';
