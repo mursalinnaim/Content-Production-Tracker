@@ -102,7 +102,27 @@ class OpenAIService
                 );
             }
 
-            $content = $response->json('output.0.content.0.text');
+            $output = $response->json('output');
+            $content = null;
+
+            if (is_array($output)) {
+                foreach ($output as $outputItem) {
+                    if (! is_array($outputItem) || ! is_array($outputItem['content'] ?? null)) {
+                        continue;
+                    }
+
+                    foreach ($outputItem['content'] as $contentItem) {
+                        if (
+                            is_array($contentItem) &&
+                            is_string($contentItem['text'] ?? null)
+                        ) {
+                            $content = $contentItem['text'];
+
+                            break 2;
+                        }
+                    }
+                }
+            }
 
             if (! is_string($content) || trim($content) === '') {
                 throw new ContentGenerationException(
@@ -113,9 +133,9 @@ class OpenAIService
                 );
             }
 
-            $result = json_decode($content, true);
-
-            if (! is_array($result)) {
+            try {
+                $contentPlan = ContentPlan::fromJson($content);
+            } catch (\JsonException $exception) {
                 throw new ContentGenerationException(
                     'OpenAI returned invalid JSON.',
                     $prompt,
@@ -128,7 +148,7 @@ class OpenAIService
             $outputTokens = $response->json('usage.output_tokens');
 
             return new ContentPlanResult(
-                contentPlan: ContentPlan::fromArray($result),
+                contentPlan: $contentPlan,
                 inputTokens: is_int($inputTokens) ? $inputTokens : null,
                 outputTokens: is_int($outputTokens) ? $outputTokens : null,
                 prompt: $prompt,

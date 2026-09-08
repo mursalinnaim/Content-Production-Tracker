@@ -267,8 +267,8 @@ One successful manual AI generation was performed using synthetic project data.
 - **Generation:** Successful
 - **Saved generation status:** `completed`
 - **Structured sections:** Displayed correctly in the Vue interface, including the suggested title, content brief, outline, key points, production tasks, and risks or missing information.
-- **Input tokens:** 280
-- **Output tokens:** Returned by the provider and saved with the generation.
+- **Input tokens:** 275
+- **Output tokens:** 315
 - **Problem encountered:** No problem occurred during the successful OpenAI request.
 
 No API key, authorization header, or raw provider response was recorded.

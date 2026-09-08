@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use InvalidArgumentException;
+use JsonException;
 
 final readonly class ContentPlan
 {
@@ -20,6 +21,114 @@ final readonly class ContentPlan
         public array $productionTasks,
         public array $risksOrMissingInformation,
     ) {}
+
+    /**
+     * @throws JsonException
+     */
+    public static function fromJson(string $json): self
+    {
+        $data = json_decode(
+            $json,
+            false,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+
+        if (! is_object($data)) {
+            throw new InvalidArgumentException(
+                'Content plan must be a JSON object.'
+            );
+        }
+
+        $required = [
+            'suggested_title',
+            'content_brief',
+            'outline',
+            'key_points',
+            'production_tasks',
+            'risks_or_missing_information',
+        ];
+
+        foreach ($required as $field) {
+            if (! property_exists($data, $field)) {
+                throw new InvalidArgumentException(
+                    "Content plan is missing required field: {$field}"
+                );
+            }
+        }
+
+        if (! is_string($data->suggested_title)) {
+            throw new InvalidArgumentException(
+                'suggested_title must be a string.'
+            );
+        }
+
+        if (! is_string($data->content_brief)) {
+            throw new InvalidArgumentException(
+                'content_brief must be a string.'
+            );
+        }
+
+        self::validateStringList($data->key_points, 'key_points');
+        self::validateStringList(
+            $data->production_tasks,
+            'production_tasks'
+        );
+        self::validateStringList(
+            $data->risks_or_missing_information,
+            'risks_or_missing_information'
+        );
+
+        if (! is_array($data->outline)) {
+            throw new InvalidArgumentException(
+                'outline must be a JSON array.'
+            );
+        }
+
+        $outline = [];
+
+        foreach ($data->outline as $item) {
+            if (! is_object($item)) {
+                throw new InvalidArgumentException(
+                    'Each outline item must be a JSON object.'
+                );
+            }
+
+            if (
+                ! property_exists($item, 'heading') ||
+                ! is_string($item->heading)
+            ) {
+                throw new InvalidArgumentException(
+                    'Each outline item must have a string heading.'
+                );
+            }
+
+            if (
+                ! property_exists($item, 'purpose') ||
+                ! is_string($item->purpose)
+            ) {
+                throw new InvalidArgumentException(
+                    'Each outline item must have a string purpose.'
+                );
+            }
+
+            $outline[] = [
+                'heading' => $item->heading,
+                'purpose' => $item->purpose,
+            ];
+        }
+
+        return new self(
+            suggestedTitle: $data->suggested_title,
+            contentBrief: $data->content_brief,
+            outline: $outline,
+            keyPoints: self::toStringList($data->key_points),
+            productionTasks: self::toStringList($data->production_tasks),
+            risksOrMissingInformation: self::toStringList(
+                $data->risks_or_missing_information
+            ),
+        );
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -95,22 +204,31 @@ final readonly class ContentPlan
         }
 
         if (! is_string($data['suggested_title'])) {
-            throw new InvalidArgumentException('suggested_title must be a string.');
+            throw new InvalidArgumentException(
+                'suggested_title must be a string.'
+            );
         }
 
         if (! is_string($data['content_brief'])) {
-            throw new InvalidArgumentException('content_brief must be a string.');
+            throw new InvalidArgumentException(
+                'content_brief must be a string.'
+            );
         }
 
         self::validateStringList($data['key_points'], 'key_points');
-        self::validateStringList($data['production_tasks'], 'production_tasks');
+        self::validateStringList(
+            $data['production_tasks'],
+            'production_tasks'
+        );
         self::validateStringList(
             $data['risks_or_missing_information'],
             'risks_or_missing_information'
         );
 
-        if (! is_array($data['outline'])) {
-            throw new InvalidArgumentException('outline must be an array.');
+        if (! is_array($data['outline']) || ! array_is_list($data['outline'])) {
+            throw new InvalidArgumentException(
+                'outline must be an array.'
+            );
         }
 
         foreach ($data['outline'] as $item) {
@@ -139,7 +257,9 @@ final readonly class ContentPlan
         string $field,
     ): void {
         if (! is_array($value)) {
-            throw new InvalidArgumentException("{$field} must be an array.");
+            throw new InvalidArgumentException(
+                "{$field} must be a JSON array."
+            );
         }
 
         foreach ($value as $item) {
@@ -149,5 +269,14 @@ final readonly class ContentPlan
                 );
             }
         }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function toStringList(mixed $value): array
+    {
+        /** @var array<int, string> $value */
+        return $value;
     }
 }

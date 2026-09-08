@@ -87,6 +87,10 @@ const isValidContentPlan = (value: unknown): value is ContentPlan => {
 };
 
 const generateContentPlan = async (projectId: number): Promise<void> => {
+    if (generatingProjectId.value !== null) {
+        return;
+    }
+
     delete generations.value[projectId];
     generatingProjectId.value = projectId;
     errors.value[projectId] = '';
@@ -198,7 +202,7 @@ const generateContentPlan = async (projectId: number): Promise<void> => {
                 <button
                     type="button"
                     class="hover:bg-muted mt-4 rounded-lg border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="generatingProjectId === project.id"
+                    :disabled="generatingProjectId !== null"
                     @click="generateContentPlan(project.id)"
                 >
                     {{
