@@ -21,6 +21,9 @@ class ContentGeneration extends Model
         'input_tokens',
         'output_tokens',
         'error_code',
+        'error_message',
+        'processing_started_at',
+        'completed_at',
     ];
 
     protected function casts(): array
@@ -29,7 +32,8 @@ class ContentGeneration extends Model
             'response' => 'array',
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
-
+            'processing_started_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 
