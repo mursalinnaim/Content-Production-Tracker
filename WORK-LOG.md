@@ -375,19 +375,25 @@ php artisan test --filter=ContentGenerationTest
 ```
 
 PASS Tests\Feature\ContentGenerationTest
-✓ it creates a pending generation and queues work without calling OpenAI 0.58s  
+✓ it creates a pending generation and queues work without calling OpenAI 0.62s  
 ✓ it executes the same generation in the worker and stores the validated result 0.08s  
 ✓ it rejects object-shaped collection fields and persists a safe failure 0.05s  
 ✓ it accepts a reasoning-first response and saves the completed plan 0.03s  
 ✓ it returns the existing active generation on repeated requests 0.03s  
 ✓ it rejects another users project before creating or queuing work 0.03s  
-✓ it rejects incomplete project input without creating work 0.04s  
+✓ it rejects incomplete project input without creating work 0.03s  
 ✓ it reads generation status only for the owning project 0.04s  
 ✓ it marks provider failures as terminal without exposing provider details 0.03s  
 ✓ it does not call OpenAI for a terminal generation 0.03s  
-✓ it uses the saved model instead of current configuration 0.03s
+✓ it uses the saved model instead of current configuration 0.03s  
+✓ it retries a rate limited generation once 0.03s  
+✓ it marks a generation as failed when the provider times out 0.03s  
+✓ it fails safely when OpenAI configuration is missing 0.04s  
+✓ it does not retry a non retryable provider failure 0.03s  
+✓ it does nothing when the generation has been deleted 0.02s  
+✓ it does not call the provider for a completed generation 0.02s
 
-Tests: 11 passed (68 assertions)
+Tests: 17 passed (80 assertions)
 
 - All focused content-generation tests passed.
 - Regression coverage includes object-shaped and empty-object collection rejection with safe failure persistence.
@@ -438,7 +444,7 @@ composer ci:check
 
 - PHPStan: passed with no errors.
 
-- Full Laravel test suite: 45 passed, 3 skipped, 167 assertions, 0 failures.
+- Full Laravel test suite: 50 passed, 3 skipped, 194 assertions, 0 failures.
 
 - The 3 skipped tests are existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
 

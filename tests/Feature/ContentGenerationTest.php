@@ -377,3 +377,215 @@ it('uses the saved model instead of current configuration', function () {
 
     Http::assertSent(fn ($request) => $request['model'] === 'gpt-4o-mini');
 });
+
+it('retries a rate limited generation once', function () {
+    Http::fake([
+        '*' => Http::sequence()
+            ->push(['error' => 'rate limited'], 429)
+            ->push([
+                'output' => [
+                    [
+                        'type' => 'message',
+                        'content' => [
+                            [
+                                'type' => 'output_text',
+                                'text' => json_encode([
+                                    'hooks' => ['Hook 1'],
+                                    'content_ideas' => ['Idea 1'],
+                                    'visuals' => ['Visual 1'],
+                                    'captions' => ['Caption 1'],
+                                ]),
+                            ],
+                        ],
+                    ],
+                ],
+                'usage' => [
+                    'input_tokens' => 10,
+                    'output_tokens' => 20,
+                ],
+            ], 200),
+    ]);
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => config('services.openai.model'),
+    ]);
+
+    $job = new GenerateContentPlan($generation->id);
+
+    try {
+        $job->handle(app(OpenAIService::class));
+    } catch (Throwable $exception) {
+        // The first attempt is expected to release itself for retry.
+    }
+
+    expect($generation->fresh()->status)->toBe('pending');
+    expect(Http::recorded())->toHaveCount(1);
+});
+
+it('marks a generation as failed when the provider times out', function () {
+    Http::fake([
+        '*' => Http::failedConnection(),
+    ]);
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => config('services.openai.model'),
+    ]);
+
+    (new GenerateContentPlan($generation->id))
+        ->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed');
+    expect($generation->error_message)->not->toBeNull();
+});
+
+it('fails safely when OpenAI configuration is missing', function () {
+    config([
+        'services.openai.api_key' => null,
+    ]);
+
+    Http::fake();
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    (new GenerateContentPlan($generation->id))
+        ->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed');
+    expect($generation->error_message)->not->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+it('does not retry a non retryable provider failure', function () {
+    Http::fake([
+        '*' => Http::response([
+            'error' => 'server error',
+        ], 500),
+    ]);
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    (new GenerateContentPlan($generation->id))
+        ->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed');
+
+    Http::assertSentCount(1);
+});
+
+it('does nothing when the generation has been deleted', function () {
+    Http::fake();
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    $generationId = $generation->id;
+
+    $generation->delete();
+
+    (new GenerateContentPlan($generationId))
+        ->handle(app(OpenAIService::class));
+
+    Http::assertNothingSent();
+});
+
+it('does not call the provider for a completed generation', function () {
+    Http::fake();
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'completed',
+        'prompt' => 'Create a short content plan.',
+        'model' => 'gpt-4o-mini',
+        'result' => [
+            'hooks' => ['Existing hook'],
+        ],
+    ]);
+
+    (new GenerateContentPlan($generation->id))
+        ->handle(app(OpenAIService::class));
+
+    expect($generation->fresh()->status)->toBe('completed');
+
+    Http::assertNothingSent();
+});
