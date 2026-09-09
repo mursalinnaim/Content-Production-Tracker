@@ -1,4 +1,8 @@
-export type GenerationStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type GenerationStatus =
+    | 'pending'
+    | 'processing'
+    | 'completed'
+    | 'failed';
 
 export interface OutlineItem {
     heading: string;

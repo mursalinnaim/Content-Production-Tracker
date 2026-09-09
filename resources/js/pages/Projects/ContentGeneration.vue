@@ -329,7 +329,10 @@ onBeforeUnmount(() => {
                 <ul
                     class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
                 >
-                    <li v-for="point in generation.response.key_points" :key="point">
+                    <li
+                        v-for="point in generation.response.key_points"
+                        :key="point"
+                    >
                         {{ point }}
                     </li>
                 </ul>
@@ -355,7 +358,8 @@ onBeforeUnmount(() => {
                     class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
                 >
                     <li
-                        v-for="risk in generation.response.risks_or_missing_information"
+                        v-for="risk in generation.response
+                            .risks_or_missing_information"
                         :key="risk"
                     >
                         {{ risk }}

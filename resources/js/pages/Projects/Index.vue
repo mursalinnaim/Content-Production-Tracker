@@ -14,7 +14,9 @@ defineProps<Props>();
         <div>
             <h1 class="text-2xl font-semibold">Projects</h1>
             <p class="text-muted-foreground">
-                {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }}
+                {{ projects.length }} project{{
+                    projects.length === 1 ? '' : 's'
+                }}
             </p>
         </div>
 
