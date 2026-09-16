@@ -1,21 +1,27 @@
-const inFlightProjects = new Set<number>();
+import { ref } from 'vue';
+
+const inFlightProjects = ref(new Set<number>());
 
 export const runGenerationRequest = async <T>(
     projectId: number,
     request: () => Promise<T>,
 ): Promise<T | undefined> => {
-    if (inFlightProjects.has(projectId)) {
+    if (inFlightProjects.value.has(projectId)) {
         return undefined;
     }
 
-    inFlightProjects.add(projectId);
+    const nextProjects = new Set(inFlightProjects.value);
+    nextProjects.add(projectId);
+    inFlightProjects.value = nextProjects;
 
     try {
         return await request();
     } finally {
-        inFlightProjects.delete(projectId);
+        const remainingProjects = new Set(inFlightProjects.value);
+        remainingProjects.delete(projectId);
+        inFlightProjects.value = remainingProjects;
     }
 };
 
 export const isGenerationRequestInFlight = (projectId: number): boolean =>
-    inFlightProjects.has(projectId);
+    inFlightProjects.value.has(projectId);

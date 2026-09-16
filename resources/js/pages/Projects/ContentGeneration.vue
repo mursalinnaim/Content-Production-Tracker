@@ -24,6 +24,7 @@ const generation = ref<ProjectGeneration | null>(props.initialGeneration);
 const error = ref('');
 let pollingTimer: ReturnType<typeof window.setInterval> | undefined;
 let pollingInFlight = false;
+let disposed = false;
 
 const isActive = (value: ProjectGeneration | null): boolean => {
     return value?.status === 'pending' || value?.status === 'processing';
@@ -133,7 +134,7 @@ const stopPolling = (): void => {
 };
 
 const fetchGenerationStatus = async (): Promise<void> => {
-    if (generation.value === null || pollingInFlight) {
+    if (disposed || generation.value === null || pollingInFlight) {
         return;
     }
 
@@ -175,6 +176,9 @@ const fetchGenerationStatus = async (): Promise<void> => {
 };
 
 const startPolling = (): void => {
+    if (disposed) {
+        return;
+    }
     stopPolling();
 
     pollingTimer = window.setInterval(() => {
@@ -224,12 +228,20 @@ const generateContentPlan = async (): Promise<void> => {
                 throw new Error('Invalid generation response.');
             }
 
+            if (disposed) {
+                return;
+            }
+
             generation.value = (data as GenerationResponse).generation;
 
             if (isActive(generation.value)) {
                 startPolling();
             }
         } catch (requestError) {
+            if (disposed) {
+                return;
+            }
+
             error.value =
                 requestError instanceof Error
                     ? requestError.message
@@ -245,6 +257,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    disposed = true;
     stopPolling();
 });
 </script>
@@ -282,11 +295,11 @@ onBeforeUnmount(() => {
             <p class="text-muted-foreground mt-2 text-sm">
                 {{ statusMessage(generation) }}
             </p>
-
-            <p v-if="error" class="text-destructive mt-3 text-sm">
-                {{ error }}
-            </p>
         </div>
+
+        <p v-if="error" class="text-destructive mt-3 text-sm">
+            {{ error }}
+        </p>
 
         <div
             v-if="generation?.status === 'completed' && generation.response"
