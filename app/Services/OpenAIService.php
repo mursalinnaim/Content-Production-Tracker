@@ -11,11 +11,25 @@ use Throwable;
 
 class OpenAIService
 {
-    public function generateContentPlan(Project $project): ContentPlanResult
+    /**
+     * @return array{prompt: string, model: ?string}
+     */
+    public function prepareGeneration(Project $project): array
     {
+        return [
+            'prompt' => $this->buildPrompt($project),
+            'model' => config('services.openai.model'),
+        ];
+    }
+
+    public function generateContentPlan(
+        Project $project,
+        ?string $prompt = null,
+        ?string $model = null,
+    ): ContentPlanResult {
+        $prompt ??= $this->buildPrompt($project);
+        $model = func_num_args() >= 3 ? $model : config('services.openai.model');
         $apiKey = config('services.openai.api_key');
-        $model = config('services.openai.model');
-        $prompt = $this->buildPrompt($project);
 
         if (empty($apiKey) || empty($model)) {
             throw new ContentGenerationException(
@@ -61,10 +75,7 @@ class OpenAIService
                                                 'heading' => ['type' => 'string'],
                                                 'purpose' => ['type' => 'string'],
                                             ],
-                                            'required' => [
-                                                'heading',
-                                                'purpose',
-                                            ],
+                                            'required' => ['heading', 'purpose'],
                                         ],
                                     ],
                                     'key_points' => [
@@ -93,6 +104,15 @@ class OpenAIService
                     ],
                 ]);
 
+            if ($response->status() === 429) {
+                throw new ContentGenerationException(
+                    'OpenAI rate limit reached.',
+                    $prompt,
+                    $model,
+                    'provider_rate_limited',
+                );
+            }
+
             if ($response->failed()) {
                 throw new ContentGenerationException(
                     'OpenAI request failed.',
@@ -117,7 +137,6 @@ class OpenAIService
                             is_string($contentItem['text'] ?? null)
                         ) {
                             $content = $contentItem['text'];
-
                             break 2;
                         }
                     }
