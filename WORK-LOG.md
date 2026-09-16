@@ -490,3 +490,37 @@ The implementation documents the exactly-once limitation: a database transaction
 ## End Time
 
 9 pm, Wednesday, September 9, 2026
+
+# Day 4 Work Log
+
+## Start Time
+
+12 am, Thursday, September 17, 2026
+
+### MySQL concurrent-request evidence
+
+Status: Completed
+
+Environment:
+
+- Database: MySQL
+- DB host: 127.0.0.1
+- Queue: database
+- Project: `1`
+
+Reproduction:
+
+1. Logged into the application with the test user.
+2. Copied the authenticated `POST /projects/<project-id>/generations` request as cURL.
+3. Sent two copies of the request concurrently from Git Bash.
+4. Both requests completed successfully and returned the same generation ID.
+5. Checked MySQL.
+6. Confirmed exactly one active generation (`pending`/`processing`) exists for the project.
+
+Observed result:
+
+- Request 1 generation ID: `2`
+- Request 2 generation ID: `2`
+- Active generations: `1`
+
+This demonstrates that concurrent generation requests for the same project do not create multiple active generations or duplicate queue jobs.

@@ -116,8 +116,8 @@ composer run dev
 
 Start the background worker in a separate terminal:
 
-```bash
-php artisan queue:work database --queue=default --tries=2 --timeout=75
+```bash 
+composer run dev:queue
 ```
 
 If the worker is not running, generation remains in `pending` until a worker claims the database queue job.

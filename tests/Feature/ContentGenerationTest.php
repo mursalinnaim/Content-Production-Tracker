@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
+    Http::preventStrayRequests();
     config(['services.openai.api_key' => 'test-openai-key']);
     config(['services.openai.model' => 'gpt-4o-mini']);
 });
@@ -378,27 +379,30 @@ it('uses the saved model instead of current configuration', function () {
     Http::assertSent(fn ($request) => $request['model'] === 'gpt-4o-mini');
 });
 
-it('retries a rate limited generation once', function () {
+it('retries a rate limited generation once and then completes successfully', function () {
     Http::fake([
-        '*' => Http::sequence()
+        'https://api.openai.com/v1/responses' => Http::sequence()
             ->push(['error' => 'rate limited'], 429)
             ->push([
-                'output' => [
-                    [
-                        'type' => 'message',
-                        'content' => [
-                            [
-                                'type' => 'output_text',
-                                'text' => json_encode([
-                                    'hooks' => ['Hook 1'],
-                                    'content_ideas' => ['Idea 1'],
-                                    'visuals' => ['Visual 1'],
-                                    'captions' => ['Caption 1'],
-                                ]),
+                'output' => [[
+                    'type' => 'message',
+                    'content' => [[
+                        'type' => 'output_text',
+                        'text' => json_encode([
+                            'suggested_title' => 'A Better Newsletter',
+                            'content_brief' => 'A practical newsletter about the project.',
+                            'outline' => [
+                                [
+                                    'heading' => 'Introduction',
+                                    'purpose' => 'Introduce the topic.',
+                                ],
                             ],
-                        ],
-                    ],
-                ],
+                            'key_points' => ['Point one'],
+                            'production_tasks' => ['Write the introduction'],
+                            'risks_or_missing_information' => [],
+                        ]),
+                    ]],
+                ]],
                 'usage' => [
                     'input_tokens' => 10,
                     'output_tokens' => 20,
@@ -422,16 +426,98 @@ it('retries a rate limited generation once', function () {
         'model' => config('services.openai.model'),
     ]);
 
-    $job = new GenerateContentPlan($generation->id);
+    // First queue attempt: provider returns 429.
+    $firstAttempt = (new GenerateContentPlan($generation->id))
+        ->withFakeQueueInteractions();
 
-    try {
-        $job->handle(app(OpenAIService::class));
-    } catch (Throwable $exception) {
-        // The first attempt is expected to release itself for retry.
-    }
+    $firstAttempt->job->attempts = 1;
+
+    $firstAttempt->handle(app(OpenAIService::class));
+
+    $firstAttempt->assertReleased(10);
+    $firstAttempt->assertNotFailed();
 
     expect($generation->fresh()->status)->toBe('pending');
-    expect(Http::recorded())->toHaveCount(1);
+
+    // Second queue attempt: provider succeeds.
+    $secondAttempt = (new GenerateContentPlan($generation->id))
+        ->withFakeQueueInteractions();
+
+    $secondAttempt->job->attempts = 2;
+
+    $secondAttempt->handle(app(OpenAIService::class));
+
+    $secondAttempt->assertNotReleased();
+    $secondAttempt->assertNotFailed();
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('completed')
+        ->and($generation->response['suggested_title'])
+        ->toBe('A Better Newsletter')
+        ->and($generation->input_tokens)->toBe(10)
+        ->and($generation->output_tokens)->toBe(20)
+        ->and($generation->completed_at)->not->toBeNull();
+
+    Http::assertSentCount(2);
+});
+
+it('fails after two consecutive rate limited attempts', function () {
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::sequence()
+            ->push(['error' => 'rate limited'], 429)
+            ->push(['error' => 'rate limited'], 429),
+    ]);
+
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => config('services.openai.model'),
+    ]);
+
+    // First queue attempt: 429 → release for retry.
+    $firstAttempt = (new GenerateContentPlan($generation->id))
+        ->withFakeQueueInteractions();
+
+    $firstAttempt->job->attempts = 1;
+
+    $firstAttempt->handle(app(OpenAIService::class));
+
+    $firstAttempt->assertReleased(10);
+    $firstAttempt->assertNotFailed();
+
+    expect($generation->fresh()->status)->toBe('pending');
+
+    // Second queue attempt: another 429 → terminal failure.
+    $secondAttempt = (new GenerateContentPlan($generation->id))
+        ->withFakeQueueInteractions();
+
+    $secondAttempt->job->attempts = 2;
+
+    $secondAttempt->handle(app(OpenAIService::class));
+
+    $secondAttempt->assertNotReleased();
+    $secondAttempt->assertNotFailed();
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed')
+        ->and($generation->error_code)->toBe('provider_rate_limited')
+        ->and($generation->error_message)
+        ->toBe('The content plan could not be generated. Please try again later.')
+        ->and($generation->completed_at)->not->toBeNull();
+
+    Http::assertSentCount(2);
 });
 
 it('marks a generation as failed when the provider times out', function () {
@@ -586,6 +672,98 @@ it('does not call the provider for a completed generation', function () {
         ->handle(app(OpenAIService::class));
 
     expect($generation->fresh()->status)->toBe('completed');
+
+    Http::assertNothingSent();
+});
+
+it('marks an active generation as failed when the queue job fails', function () {
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $generation = ContentGeneration::factory()->create([
+        'project_id' => $project->id,
+        'status' => 'processing',
+        'prompt' => 'Saved prompt',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    $job = new GenerateContentPlan($generation->id);
+
+    $job->failed(new RuntimeException('SECRET WORKER FAILURE'));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed')
+        ->and($generation->error_code)->toBe('worker_failed')
+        ->and($generation->error_message)
+        ->toBe('The content plan could not be generated. Please try again later.')
+        ->and($generation->completed_at)->not->toBeNull();
+});
+
+it('fails safely when a generation is already processing', function () {
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $generation = ContentGeneration::factory()->create([
+        'project_id' => $project->id,
+        'status' => 'processing',
+        'prompt' => 'Saved prompt',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    Http::fake();
+
+    $job = new GenerateContentPlan($generation->id);
+
+    $job->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed')
+        ->and($generation->error_code)->toBe('worker_recovery_required')
+        ->and($generation->error_message)
+        ->toBe('The generation could not be completed safely by the worker.')
+        ->and($generation->completed_at)->not->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+it('does not process a generation that is already failed', function () {
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $generation = ContentGeneration::factory()->create([
+        'project_id' => $project->id,
+        'status' => 'failed',
+        'prompt' => 'Saved prompt',
+        'model' => 'gpt-4o-mini',
+        'error_code' => 'provider_rate_limited',
+        'error_message' => 'The content plan could not be generated. Please try again later.',
+        'completed_at' => now(),
+    ]);
+
+    Http::fake();
+
+    $job = new GenerateContentPlan($generation->id);
+
+    $job->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed')
+        ->and($generation->error_code)->toBe('provider_rate_limited')
+        ->and($generation->error_message)
+        ->toBe('The content plan could not be generated. Please try again later.')
+        ->and($generation->completed_at)->not->toBeNull();
 
     Http::assertNothingSent();
 });
