@@ -263,13 +263,13 @@ php artisan test
 
 One successful manual AI generation was performed using synthetic project data.
 
-- **Model:** `gpt-4o-mini`
-- **Generation:** Successful
-- **Saved generation status:** `completed`
-- **Structured sections:** Displayed correctly in the Vue interface, including the suggested title, content brief, outline, key points, production tasks, and risks or missing information.
-- **Input tokens:** 275
-- **Output tokens:** 315
-- **Problem encountered:** No problem occurred during the successful OpenAI request.
+- Model: `gpt-4o-mini`
+- Generation: Successful
+- Saved generation status: `completed`
+- Structured sections: Displayed correctly in the Vue interface, including the suggested title, content brief, outline, key points, production tasks, and risks or missing information.
+- Input tokens: 275
+- Output tokens: 315
+- Problem encountered: No problem occurred during the successful OpenAI request.
 
 No API key, authorization header, or raw provider response was recorded.
 
@@ -294,6 +294,7 @@ I learned how token usage can be stored directly with the generation that produc
 ## Starting Branch and Commit
 
 - Branch: `feature/background-content-generation`
+
 - Starting point: `main` at `4fad87e21a8a70f3c5ac60062c439f4d36e87243` when this branch was created.
 
 ## Baseline Verification
@@ -344,20 +345,34 @@ The repository was inspected from the Day 3 `main` implementation before changin
 
 - Updated README with the separate web/worker startup commands and background-generation architecture.
 
+- Fixed the first-request error state so provider failures are visible even when no generation object has been returned yet.
+
+- Added frontend lifecycle protection so a late POST response cannot restart polling after the component has been unmounted.
+
+- Made the generation request guard reactive so the Generate button correctly reflects an in-flight request.
+
+- Added separate web and queue-worker development commands so starting the normal development environment does not automatically start a queue consumer.
+
+- Added queue lifecycle regression coverage for queue failure handling, already-processing recovery, terminal generations, and unexpected worker exceptions.
+
 ## Queue Configuration
 
 Database queue settings:
 
 ```text
+
 QUEUE_CONNECTION=database
 
 DB_QUEUE_RETRY_AFTER=90
+
 ```
 
 Worker command:
 
 ```text
-php artisan queue:work database --queue=default --tries=2 --timeout=75
+
+composer run dev:queue
+
 ```
 
 OpenAI HTTP timeout: 60 seconds.
@@ -371,51 +386,81 @@ Only an explicit provider `429` rate-limit response is retryable, with one addit
 ### Focused Day 4 Feature Tests
 
 ```text
-php artisan test --filter=ContentGenerationTest
+
+php artisan test tests/Feature/ContentGenerationTest.php
+
 ```
 
 PASS Tests\Feature\ContentGenerationTest
-✓ it creates a pending generation and queues work without calling OpenAI 0.62s  
-✓ it executes the same generation in the worker and stores the validated result 0.08s  
-✓ it rejects object-shaped collection fields and persists a safe failure 0.05s  
-✓ it accepts a reasoning-first response and saves the completed plan 0.03s  
-✓ it returns the existing active generation on repeated requests 0.03s  
-✓ it rejects another users project before creating or queuing work 0.03s  
-✓ it rejects incomplete project input without creating work 0.03s  
-✓ it reads generation status only for the owning project 0.04s  
-✓ it marks provider failures as terminal without exposing provider details 0.03s  
-✓ it does not call OpenAI for a terminal generation 0.03s  
-✓ it uses the saved model instead of current configuration 0.03s  
-✓ it retries a rate limited generation once 0.03s  
-✓ it marks a generation as failed when the provider times out 0.03s  
-✓ it fails safely when OpenAI configuration is missing 0.04s  
-✓ it does not retry a non retryable provider failure 0.03s  
-✓ it does nothing when the generation has been deleted 0.02s  
-✓ it does not call the provider for a completed generation 0.02s
 
-Tests: 17 passed (80 assertions)
+✓ it creates a pending generation and queues work without calling OpenAI
 
-- All focused content-generation tests passed.
-- Regression coverage includes object-shaped and empty-object collection rejection with safe failure persistence.
-- Regression coverage includes a valid reasoning-first provider response with completed-plan persistence.
-- Duplicate-generation and ownership protections passed.
-- No real OpenAI requests were made.
+✓ it executes the same generation in the worker and stores the validated result
+
+✓ it rejects object-shaped collection fields and persists a safe failure
+
+✓ it accepts a reasoning-first response and saves the completed plan
+
+✓ it returns the existing active generation on repeated requests
+
+✓ it rejects another users project before creating or queuing work
+
+✓ it rejects incomplete project input without creating work
+
+✓ it reads generation status only for the owning project
+
+✓ it marks provider failures as terminal without exposing provider details
+
+✓ it does not call OpenAI for a terminal generation
+
+✓ it uses the saved model instead of current configuration
+
+✓ it retries a rate limited generation once and then completes successfully
+
+✓ it fails after two consecutive rate limited attempts
+
+✓ it marks a generation as failed when the provider times out
+
+✓ it fails safely when OpenAI configuration is missing
+
+✓ it does not retry a non retryable provider failure
+
+✓ it does nothing when the generation has been deleted
+
+✓ it does not call the provider for a completed generation
+
+✓ it marks an active generation as failed when the queue job fails
+
+✓ it fails safely when a generation is already processing
+
+✓ it does not process a generation that is already failed
+
+✓ it handles unexpected worker exceptions without exposing internal details
+
+Tests: 22 passed (120 assertions)
 
 ### Frontend Regression Tests
 
 ```text
-npx vp test
+
+npm run test
+
 ```
 
-- 1 test file passed.
-- 3 tests passed.
-- 0 failures.
-- Deterministic deferred-request tests verify repeated-click protection, cross-project behavior, and guard reset after completion/failure.
+✓ tests/frontend/generationRequestGuard.test.ts (3 tests) 9ms
+
+✓ tests/frontend/ContentGeneration.test.ts (4 tests) 63ms
+
+Test Files 2 passed (2)
+
+Tests 7 passed (7)
 
 ### TypeScript
 
 ```text
+
 npm run type-check
+
 ```
 
 - Passed with no TypeScript errors.
@@ -423,7 +468,9 @@ npm run type-check
 ### Production Build
 
 ```text
+
 npm run build
+
 ```
 
 - Passed successfully.
@@ -431,7 +478,9 @@ npm run build
 ### Full Project Quality Checks
 
 ```text
+
 composer ci:check
+
 ```
 
 - Formatting: passed.
@@ -444,14 +493,16 @@ composer ci:check
 
 - PHPStan: passed with no errors.
 
-- Full Laravel test suite: 50 passed, 3 skipped, 194 assertions, 0 failures.
+- Full Laravel test suite: 3 skipped, 55 passed (234 assertions)
 
 - The 3 skipped tests are existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
 
 ### Reviewer-Only Verification
 
 - Boundary and deferred-fetch probes requested during review were executed successfully.
+
 - The reviewer-only probes confirmed the intended request and deferred-response behavior.
+
 - No live provider requests were made during automated verification.
 
 ## Review Regression Coverage
@@ -459,25 +510,50 @@ composer ci:check
 The Day 3 re-review requested committed regression tests for NCP-011, NCP-012, and NCP-013. These tests are now included in the repository and pass through the project's test tooling.
 
 - NCP-011: object-shaped collection values, including empty objects, are rejected and persisted as safe failed generations.
+
 - NCP-012: valid reasoning-first provider responses are accepted and persisted as completed plans.
+
 - NCP-013: deterministic frontend request-guard coverage prevents repeated requests for the same project and preserves independent-project behavior while an active request is pending.
 
 The frontend regression test uses deferred promises to deterministically verify request concurrency behavior without adding a browser-test dependency.
+
+Additional Day 4 review regressions:
+
+- NCP-015: first-request provider failures are rendered even when no generation object exists yet.
+
+- NCP-016: a late POST response cannot restart polling after the component has been unmounted.
+
+- NCP-017: the in-flight generation request state is reactive and correctly disables the relevant Generate button.
+
+- NCP-018: web development startup and queue-worker startup are separated, and the README documents the independent worker lifecycle.
+
+- NCP-019: queue lifecycle coverage now includes rate-limit retry/success, consecutive rate-limit failure, provider timeout/error handling, queue `failed()` handling, already-processing recovery, terminal duplicate delivery, and unexpected worker exceptions without exposing internal details.
 
 ## Manual Verification
 
 The background generation flow was manually verified with a separate Laravel queue worker.
 
 - The web request immediately displayed `Waiting to start`.
+
 - The generation transitioned to `Generating` while the worker processed the queued job.
+
 - The generation transitioned to `Completed` after the worker finished.
+
 - Closing the browser during generation did not stop the background job.
+
 - Reopening the Projects page restored the saved generation state/result.
+
 - Refreshing during generation preserved the server-side generation lifecycle and did not start a new generation.
+
 - Duplicate generation was tested using multiple tabs and did not create a second active generation.
+
 - An intentionally invalid provider configuration produced a terminal `Failed` state with a safe error message.
+
 - The worker output confirmed that `GenerateContentPlan` ran independently of the browser.
-- The worker-stopped/pending recovery scenario was not performed because Laravel Herd was running additional queue listener/worker processes in the development environment. After stopping the manually started `queue:work` process, other Laravel queue processes (`queue:listen` and `queue:work --once`) continued consuming the database queue. Therefore, a true state with no queue worker available could not be isolated reliably, so the test was not claimed as completed.
+
+- Stopped-worker recovery was verified: generation `5` remained pending with one queued job while the worker was stopped; after restarting the worker, generation `5` completed and the queued job count returned to zero.
+
+- MySQL concurrent requests were tested with two near-simultaneous generation requests for the same project. Both requests returned the same generation ID, with one active generation and one queued job, confirming that concurrent requests did not create duplicate active generations.
 
 ## Final Verification Notes
 
@@ -487,40 +563,8 @@ The final implementation preserves the accepted prompt and model for queued work
 
 The implementation documents the exactly-once limitation: a database transaction and a paid external API cannot guarantee exactly-once external execution across every possible failure boundary.
 
+For a generation left in a `processing` state after an interrupted worker, the current implementation fails the generation safely rather than blindly re-queuing it. This avoids silently issuing a second paid provider request when the outcome of the original external request is unknown. Such generations should be reviewed before any manual retry.
+
 ## End Time
 
 9 pm, Wednesday, September 9, 2026
-
-# Day 4 Work Log
-
-## Start Time
-
-12 am, Thursday, September 17, 2026
-
-### MySQL concurrent-request evidence
-
-Status: Completed
-
-Environment:
-
-- Database: MySQL
-- DB host: 127.0.0.1
-- Queue: database
-- Project: `1`
-
-Reproduction:
-
-1. Logged into the application with the test user.
-2. Copied the authenticated `POST /projects/<project-id>/generations` request as cURL.
-3. Sent two copies of the request concurrently from Git Bash.
-4. Both requests completed successfully and returned the same generation ID.
-5. Checked MySQL.
-6. Confirmed exactly one active generation (`pending`/`processing`) exists for the project.
-
-Observed result:
-
-- Request 1 generation ID: `2`
-- Request 2 generation ID: `2`
-- Active generations: `1`
-
-This demonstrates that concurrent generation requests for the same project do not create multiple active generations or duplicate queue jobs.

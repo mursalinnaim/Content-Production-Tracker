@@ -116,7 +116,7 @@ composer run dev
 
 Start the background worker in a separate terminal:
 
-```bash 
+```bash
 composer run dev:queue
 ```
 

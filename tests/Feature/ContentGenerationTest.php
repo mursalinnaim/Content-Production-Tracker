@@ -767,3 +767,41 @@ it('does not process a generation that is already failed', function () {
 
     Http::assertNothingSent();
 });
+
+it('handles unexpected worker exceptions without exposing internal details', function () {
+    $user = User::factory()->create();
+
+    $project = Project::factory()->create([
+        'user_id' => $user->id,
+        'title' => 'Test Project',
+        'content_type' => 'Social Media',
+        'brief' => 'Create a short content plan.',
+    ]);
+
+    $generation = ContentGeneration::create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Create a short content plan.',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    $this->mock(OpenAIService::class, function ($mock) {
+        $mock
+            ->shouldReceive('generateContentPlan')
+            ->once()
+            ->andThrow(new RuntimeException('SECRET INTERNAL FAILURE'));
+    });
+
+    $job = new GenerateContentPlan($generation->id);
+
+    $job->handle(app(OpenAIService::class));
+
+    $generation->refresh();
+
+    expect($generation->status)->toBe('failed')
+        ->and($generation->error_code)->toBe('generation_failed')
+        ->and($generation->error_message)
+        ->toBe('The content plan could not be generated. Please try again later.')
+        ->and($generation->error_message)
+        ->not->toContain('SECRET INTERNAL FAILURE');
+});
