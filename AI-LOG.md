@@ -235,3 +235,79 @@ I followed this approach. Failed generations store a safe error code in `content
 ### Verification:
 
 Added fake-provider tests for HTTP failures, empty responses, invalid JSON, and structurally invalid responses. Verified that the tests pass and that provider error details and API credentials are not exposed.
+
+# Day 4
+
+## Entry 11 — Background Job Architecture
+
+### Task
+
+Move the slow OpenAI content-plan generation out of the web request and into a Laravel database-queue job while preserving the Day 3 generation behavior.
+
+### Prompt
+
+I asked AI how to implement the Day 4 background-generation flow while meeting the requirements for a database queue, saved generation state, duplicate protection, worker retries, polling, and safe failures.
+
+### Suggested Solution
+
+AI recommended keeping the web request responsible for authentication, ownership, validation, and accepting the generation; saving the intended prompt and configured model on a `content_generations` record; dispatching a job containing only the generation ID; and having the worker load the generation and call the existing `OpenAIService`. The frontend should use the saved generation status and poll the status endpoint while the generation is active.
+
+### My Decision
+
+I followed this architecture. The queue driver remains `database`; Redis and Horizon were not added. The request creates a `pending` generation and returns `202 Accepted` without calling OpenAI. The job transitions the saved record to `processing`, calls the existing service, and persists either the validated result or a safe terminal failure.
+
+I also kept the accepted prompt and model on the generation record so later configuration changes cannot alter already-accepted queued work. The job receives only the generation ID rather than serializing the user or project object.
+
+### Verification
+
+I ran the focused feature tests and confirmed that the request/worker separation is covered with fake queue/provider behavior and no real OpenAI requests.
+
+## Entry 12 — Concurrency, Retry, and Recovery Decisions
+
+### Task
+
+Prevent duplicate active generations and duplicate provider calls while handling queue delivery, rate limits, and worker failures safely.
+
+### Prompt
+
+I asked AI how to protect the one-active-generation-per-project rule under concurrent requests and queue delivery, and how to implement the assignment's requirement for exactly one retryable provider case.
+
+### Suggested Solution
+
+AI recommended locking the project row inside a database transaction when checking for an active generation and creating a new one, dispatching only after the generation commit, and using a generation-ID-based overlap lock in the worker. For retries, only an explicit provider HTTP 429/rate-limit response should be retried once; invalid output, missing configuration, ordinary provider errors, and ambiguous timeout/read failures should become terminal failures.
+
+### My Decision
+
+I followed that policy. The worker is configured for two total attempts, with a delayed retry only for the explicit rate-limit exception. I did not add automatic retries for ambiguous timeouts because a paid external API request may have succeeded even if the response was not received, so blindly retrying could create a duplicate provider charge/work item.
+
+The implementation also documents the exactly-once limitation: database state and a paid external API cannot provide a mathematical exactly-once guarantee across all failure boundaries.
+
+### Verification
+
+The queue configuration uses a 75-second worker timeout and a 90-second `retry_after`, while the OpenAI HTTP request timeout is 60 seconds. Automated tests cover terminal generations, provider failures, and saved-model behavior; all focused Day 4 tests passed.
+
+## Entry 13 — Frontend Polling and Review Regression Tests
+
+### Task
+
+Restore generation state after refresh, show the required status lifecycle, and add the regression coverage requested during the Day 3 re-review.
+
+### Prompt
+
+I asked AI how to keep the Vue page deterministic while the generation runs in the background and how to add regression tests for the Day 3 review fixes without making real provider requests.
+
+### Suggested Solution
+
+AI suggested storing the latest generation state in the project data, polling the owner-only status endpoint about every two seconds while a generation is `pending` or `processing`, stopping on terminal states or navigation, and keeping loading/request state per project. For the regression tests, fake provider responses should cover object-shaped collection values and reasoning-first responses, while a deferred request guard can deterministically test repeated-click protection.
+
+### My Decision
+
+I kept the Day 4 UI loading state per project, so a project with an active generation is disabled while another project can still be started. I used the project's existing Vite+ test tooling rather than adding a separate test framework. The frontend regression test exercises the extracted request guard with deferred promises, which verifies the concurrency behavior without requiring browser E2E dependencies.
+
+During implementation, a TypeScript narrowing error was found in the Vue template around the nullable generation response; I corrected the template accesses with safe optional chaining and reran the type check.
+
+I also corrected the NCP-011 regression test so an empty JSON object is represented as `(object) []` rather than `[]`, because `[]` serializes to a JSON array and would not actually reproduce the reviewed invalid object-shaped input.
+
+### Verification
+
+The requested regression coverage is now committed in the repository. The focused Day 4 feature suite passed 11 tests with 68 assertions, and the frontend suite passed 3 tests. `npm run type-check` passed with no errors.
