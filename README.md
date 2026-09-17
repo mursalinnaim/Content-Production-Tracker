@@ -128,6 +128,17 @@ The exact background-generation design, status lifecycle, duplicate protection, 
 docs/BACKGROUND-GENERATION-SPEC.md
 ```
 
+### Safe Manual Recovery
+
+If a generation remains in `processing` after a worker interruption, do not manually re-queue it immediately. The original provider request may have already been accepted, so retrying it could create a duplicate paid request.
+
+1. Check the generation status and confirm whether it is `pending`, `processing`, `completed`, or `failed`.
+2. If the generation is `pending` and its queue job is still present, start the queue worker and allow the existing job to continue.
+3. If the generation is `processing`, do **not** create another queue job for the same generation. Leave it for manual review because the outcome of the original provider request may be unknown.
+4. If the provider outcome is confirmed to have failed before the request was accepted, the generation can be reviewed for a controlled retry.
+5. Do not blindly reset a `processing` generation to `pending` and re-queue it, as this can result in duplicate provider requests and duplicate usage charges.
+6. Once the generation is confirmed `completed` or `failed`, no additional job should be created for that generation.
+
 ### Retry and Failure Policy
 
 Only an explicit OpenAI `429` rate-limit response receives one additional delayed attempt. Invalid output, missing configuration, ordinary provider errors, and ambiguous timeouts are not automatically retried because a repeated external request can create another paid request.
