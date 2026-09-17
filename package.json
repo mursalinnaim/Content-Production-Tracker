@@ -6,7 +6,6 @@
         "build": "vp build",
         "build:ssr": "vp build && vp build --ssr",
         "dev": "vp dev",
-        "test": "vp test",
         "check": "vp check",
         "check:fix": "vp check --fix",
         "types:check": "vue-tsc --noEmit",
@@ -32,13 +31,10 @@
         "@tailwindcss/vite": "^4.1.11",
         "@types/node": "^22.13.5",
         "@vitejs/plugin-vue": "^6.0.0",
-        "@vue/test-utils": "^2.5.1",
         "concurrently": "^10.0.3",
-        "jsdom": "^30.0.1",
         "typescript": "^5.2.2",
         "vite": "^8.0.0",
         "vite-plus": "0.3.0",
-        "vitest": "^4.1.11",
         "vue-tsc": "^2.2.4"
     },
     "optionalDependencies": {

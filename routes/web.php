@@ -21,10 +21,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         '/projects/{project}/generations',
         [ContentGenerationController::class, 'store']
     )->name('projects.generations.store');
-    Route::get(
-        '/projects/{project}/generations/{generation}',
-        [ContentGenerationController::class, 'show']
-    )->name('projects.generations.show');
 });
 
 require __DIR__.'/settings.php';

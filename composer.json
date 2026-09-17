@@ -53,10 +53,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd\" \"php artisan serve\" \"npm run dev\" --names='server,vite'"
-        ],
-        "dev:queue": [
-            "php artisan queue:work database --queue=default --tries=2 --timeout=75"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names='server,queue,vite'"
         ],
         "lint": [
             "pint --parallel"

@@ -12,7 +12,6 @@ class ProjectController extends Controller
     {
         $projects = $request->user()
             ->projects()
-            ->with('latestContentGeneration')
             ->latest()
             ->get();
 
