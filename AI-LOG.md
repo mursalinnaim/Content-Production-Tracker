@@ -311,3 +311,49 @@ I also corrected the NCP-011 regression test so an empty JSON object is represen
 ### Verification
 
 The requested regression coverage is now committed in the repository. The focused Day 4 feature suite passed 11 tests with 68 assertions, and the frontend suite passed 3 tests. `npm run type-check` passed with no errors.
+
+# Day 5
+
+## Entry 14 — Content Review Data Model
+
+### Task
+
+Add human review to generated content plans without overwriting the original AI response or losing earlier generations.
+
+### Prompt
+
+I asked AI how to model editable drafts, regenerated versions, and an accepted plan while keeping the existing generation statuses and database queue workflow.
+
+### Suggested Solution
+
+AI recommended keeping the validated provider response immutable, storing one editable draft on each generation, linking regenerated generations to their source generation, and storing the accepted content as a separate project-level snapshot.
+
+### My Decision
+
+I followed this structure because it keeps AI output, user edits, and the final selected plan separate. Acceptance uses the saved draft when available, otherwise the original response, and later draft edits cannot change the accepted snapshot silently.
+
+### Verification
+
+Added migrations, model relationships, ownership checks, structured draft validation, idempotent acceptance, regeneration prompt persistence, and history responses. The Laravel review tests verify draft immutability, accepted snapshots, source-generation links, and preservation after failed regeneration.
+
+## Entry 15 — Review Workflow and Regression Coverage
+
+### Task
+
+Implement and verify the Vue review workflow for editing, saving, accepting, regenerating, switching versions, and handling background lifecycle changes.
+
+### Prompt
+
+I asked AI how to keep the review controls tied to the selected generation, preserve unsaved edits during polling, prevent duplicate regeneration work, and test the rendered component behavior.
+
+### Suggested Solution
+
+AI recommended resolving review actions from the generation currently rendered, keeping polling independent from the version being viewed, requiring confirmation before discarding unsaved edits, and testing the component with synthetic fetch responses and timers.
+
+### My Decision
+
+I used the existing Vue Test Utils and Vite+ setup rather than adding another testing framework. I also added an explicit response and UI notice when regeneration reuses an already-active generation, so new instructions are not silently presented as queued work.
+
+### Verification
+
+The final frontend suite covers save and accepted-plan restoration, save failures, regeneration through completion, version switching, background completion during editing, unmount cleanup, delayed responses, and independent project loading. `npx vp test` passed 20 tests, and the complete CI/build checks passed without live provider requests.

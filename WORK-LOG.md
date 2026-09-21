@@ -565,6 +565,105 @@ The implementation documents the exactly-once limitation: a database transaction
 
 For a generation left in a `processing` state after an interrupted worker, the current implementation fails the generation safely rather than blindly re-queuing it. This avoids silently issuing a second paid provider request when the outcome of the original external request is unknown. Such generations should be reviewed before any manual retry.
 
+# Day 5 Verification Addendum
+
+## Automated verification
+
+- `npx vp test`: passed, 16 tests across 3 frontend/component files.
+- `npm run check`: passed with no formatting, lint, or warning failures.
+- `npm run type-check`: passed with no TypeScript errors.
+- `composer run lint:check`: passed.
+- `php artisan test --filter=ContentGenerationReviewTest`: passed, 17 tests and 97 assertions.
+- The Day 5 review suite now covers unauthenticated access to every review endpoint, rendered save-error preservation, and failed regeneration preserving the source draft and accepted snapshot.
+- `npm run build`: passed after the final test-discovery and implementation changes.
+
 ## End Time
 
 9 pm, Wednesday, September 9, 2026
+
+# Day 5 Work Log
+
+## Date
+
+Tuesday, September 22, 2026
+
+## Starting Branch and Commit
+
+- Branch: `feature/content-plan-review`
+- Starting commit: `4fad87e` (`main`)
+
+## Task
+
+Implement human review for completed AI content plans: edit and save drafts, accept a final snapshot, regenerate with instructions, preserve generation history, and keep the original AI response separate from user edits.
+
+## Design Note
+
+Created `docs/CONTENT-REVIEW-SPEC.md` before implementation. The design keeps the original provider response immutable, stores one editable draft per generation, creates a separate generation for regeneration, and stores one current accepted snapshot per project.
+
+## Day 4 Follow-up
+
+Day 4 remediation remained separate from the Day 5 feature. The existing implementation and regression coverage address NCP-015 through NCP-019: first-request errors, late-response polling cleanup, reactive request state, independent worker startup, bounded retries, worker failure/recovery handling, terminal duplicate jobs, stray-request prevention, and concurrency evidence.
+
+## Day 5 Implementation
+
+- Added separate draft and accepted-plan storage while preserving original AI responses.
+- Added accepted-plan migrations, relationships, source-generation references, and generation numbering.
+- Added owner- and project-generation checks for history, detail, draft, acceptance, and regeneration actions.
+- Added strict Laravel validation for all six editable content sections and nested outline items.
+- Added idempotent acceptance with one current accepted snapshot per project.
+- Added regeneration prompts using the saved draft or original response, persisted instructions, source generation, and configured model.
+- Reused the existing database queue and active-generation protection for regeneration.
+- Added version history with statuses, timestamps, draft markers, and accepted-source markers.
+- Added Vue controls for Edit, Save draft, Cancel, Accept, Regenerate, version switching, discard confirmation, and safe failure messages.
+- Preserved open edit forms during background completion and stopped polling on terminal status or unmount, including delayed POST responses.
+- Added an explicit notice when regeneration instructions are not queued because another generation is already active.
+
+## Problems and Fixes
+
+- Review actions could resolve the wrong generation after selection changes. Review actions now use the rendered selected generation consistently.
+- Several frontend tests selected the first button instead of the intended control. Tests now select controls by their rendered text.
+- TypeScript exposed nullable accepted-plan rendering and weakly typed component fixtures. Both were corrected.
+- PHPStan identified an unsafe regeneration content type. Regeneration now reads cast attributes safely and rejects completed generations without usable content.
+- The neighboring component test suite was not included by Vitest and used an unsupported jsdom selector. Test discovery and selectors were corrected.
+- Active regeneration originally reused work silently. The API now returns a reuse flag/message and the UI displays it.
+
+## Verification
+
+```text
+composer ci:check
+```
+
+- Passed: frontend formatting/lint, TypeScript, Pint, PHPStan, and Laravel tests.
+- Laravel result: 74 passed, 3 skipped, 363 assertions.
+- The skipped tests are the existing Fortify two-factor-authentication tests because 2FA is not enabled locally.
+
+```text
+npx vp test
+```
+
+- Passed: 3 test files, 20 frontend/component tests.
+
+```text
+npm run type-check
+npm run build
+```
+
+- TypeScript check passed.
+- Production build passed. The build emitted only the existing optional `fontaine` optimization notice.
+
+The final history was regrouped into five meaningful commits:
+
+- `515577e` `feat: add background generation and content review`
+- `9be40ce` `test: cover generation and review workflows`
+- `4ed45fa` `docs: document generation and content review`
+- `108f0d8` `fix: finalize review workflow safeguards`
+- `f345e9d` `docs: record final verification results`
+
+## Remaining Limitations
+
+- Screenshots, the 4–6 minute demonstration recording, and live manual workflow evidence still need to be attached outside the code repository.
+- Automated verification uses synthetic provider responses and makes no paid OpenAI requests.
+
+## End Time
+
+Not recorded.
