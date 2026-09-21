@@ -31,8 +31,12 @@ const error = ref('');
 const generationRequestPending = ref(false);
 const generationMenuOpen = ref(false);
 const generations = ref<GenerationHistoryItem[]>([]);
-const selectedGenerationId = ref<number | null>(null);
-const selectedGenerationDetail = ref<ProjectGeneration | null>(null);
+const selectedGenerationId = ref<number | null>(
+    props.initialGeneration?.id ?? null,
+);
+const selectedGenerationDetail = ref<ProjectGeneration | null>(
+    props.initialGeneration,
+);
 const historyLoading = ref(false);
 const historyError = ref<string | null>(null);
 const acceptedContentPlan = ref<AcceptedContentPlan | null>(null);
@@ -41,6 +45,7 @@ const acceptanceError = ref<string | null>(null);
 const regenerationInstructions = ref('');
 const regenerationLoading = ref(false);
 const regenerationError = ref<string | null>(null);
+const regenerationNotice = ref<string | null>(null);
 let pollingTimer: ReturnType<typeof window.setInterval> | undefined;
 let pollingInFlight = false;
 let disposed = false;
@@ -435,7 +440,7 @@ const isAcceptedVersion = computed(() => {
 });
 
 const getReviewGeneration = (): ProjectGeneration | null => {
-    return selectedGenerationDetail.value ?? generation.value;
+    return displayedGeneration.value ?? generation.value;
 };
 
 const startEditing = (): void => {
@@ -667,7 +672,7 @@ const regenerateContentPlan = async (): Promise<void> => {
 
     if (
         value?.status !== 'completed' ||
-        value.draft === null && value.response === null ||
+        (value.draft === null && value.response === null) ||
         isEditing.value ||
         instructions === '' ||
         regenerationLoading.value
@@ -677,6 +682,7 @@ const regenerateContentPlan = async (): Promise<void> => {
 
     regenerationLoading.value = true;
     regenerationError.value = null;
+    regenerationNotice.value = null;
 
     try {
         const response = await fetch(
@@ -710,13 +716,24 @@ const regenerateContentPlan = async (): Promise<void> => {
             throw new Error('Invalid regeneration response.');
         }
 
-        const newGeneration = (data as GenerationResponse).generation;
+        const regenerationResponse = data as GenerationResponse & {
+            message?: string;
+            regeneration_queued?: boolean;
+        };
+        const newGeneration = regenerationResponse.generation;
         updateGenerationInHistory(newGeneration);
         generation.value = newGeneration;
         selectedGenerationId.value = newGeneration.id;
         selectedGenerationDetail.value = newGeneration;
         generationMenuOpen.value = true;
         regenerationInstructions.value = '';
+
+        if (
+            regenerationResponse.regeneration_queued === false &&
+            typeof regenerationResponse.message === 'string'
+        ) {
+            regenerationNotice.value = regenerationResponse.message;
+        }
 
         if (isActive(newGeneration)) {
             startPolling();
@@ -995,9 +1012,9 @@ onBeforeUnmount(() => {
                                     generations.find(
                                         (item) =>
                                             item.id ===
-                                            acceptedContentPlan.source_generation_id,
+                                            acceptedContentPlan?.source_generation_id,
                                     )?.generation_number ??
-                                    acceptedContentPlan.source_generation_id
+                                    acceptedContentPlan?.source_generation_id
                                 }}
                                 on
                                 {{
@@ -1050,7 +1067,7 @@ onBeforeUnmount(() => {
                             v-if="!isEditing"
                             type="button"
                             class="rounded-md border px-3 py-2 text-sm font-medium"
-                            @click="startEditing"
+                            @click="startEditing()"
                         >
                             Edit
                         </button>
@@ -1109,7 +1126,7 @@ onBeforeUnmount(() => {
                             type="button"
                             class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
                             :disabled="acceptanceLoading"
-                            @click="acceptGeneration"
+                            @click="acceptGeneration()"
                         >
                             {{
                                 acceptanceLoading
@@ -1140,7 +1157,7 @@ onBeforeUnmount(() => {
                                     regenerationLoading ||
                                     regenerationInstructions.trim() === ''
                                 "
-                                @click="regenerateContentPlan"
+                                @click="regenerateContentPlan()"
                             >
                                 {{
                                     regenerationLoading
@@ -1153,6 +1170,12 @@ onBeforeUnmount(() => {
                                 class="text-destructive text-sm"
                             >
                                 {{ regenerationError }}
+                            </p>
+                            <p
+                                v-if="regenerationNotice"
+                                class="text-muted-foreground text-sm"
+                            >
+                                {{ regenerationNotice }}
                             </p>
                         </div>
                     </div>
@@ -1380,7 +1403,10 @@ onBeforeUnmount(() => {
             v-else
             type="button"
             class="hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
-            :disabled="generationRequestPending || isGenerationRequestInFlight(props.projectId)"
+            :disabled="
+                generationRequestPending ||
+                isGenerationRequestInFlight(props.projectId)
+            "
             @click="generateContentPlan"
         >
             Generate Content Plan

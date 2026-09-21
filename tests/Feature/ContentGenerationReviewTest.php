@@ -5,6 +5,7 @@ use App\Models\AcceptedContentPlan;
 use App\Models\ContentGeneration;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\OpenAIService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
@@ -196,6 +197,80 @@ it('loads the accepted plan only for its owning project', function () {
         ->assertNotFound();
 });
 
+it('rejects unauthenticated access to every review endpoint', function () {
+    $project = Project::factory()->create();
+    $generation = completedReviewGeneration($project);
+
+    $requests = [
+        fn () => $this->getJson(route('projects.generations.history', [$project])),
+        fn () => $this->getJson(route('projects.generations.show', [$project, $generation])),
+        fn () => $this->getJson(route('projects.accepted-plan', [$project])),
+        fn () => $this->putJson(
+            route('projects.generations.draft', [$project, $generation]),
+            ['draft' => reviewPlan()],
+        ),
+        fn () => $this->postJson(route('projects.generations.accept', [$project, $generation])),
+        fn () => $this->postJson(
+            route('projects.generations.regenerate', [$project, $generation]),
+            ['instructions' => 'Change the angle.'],
+        ),
+    ];
+
+    foreach ($requests as $request) {
+        $request()->assertUnauthorized();
+    }
+
+    expect(AcceptedContentPlan::count())->toBe(0)
+        ->and(ContentGeneration::count())->toBe(1);
+});
+
+it('rejects another user and wrong-project generations for every review endpoint', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $project = Project::factory()->create(['user_id' => $user->id]);
+    $sameOwnerProject = Project::factory()->create(['user_id' => $user->id]);
+    $otherProject = Project::factory()->create(['user_id' => $otherUser->id]);
+    $generation = completedReviewGeneration($project);
+    $sameOwnerGeneration = completedReviewGeneration($sameOwnerProject);
+    $otherGeneration = completedReviewGeneration($otherProject);
+
+    $requests = fn (User $actor, Project $requestedProject, ContentGeneration $requestedGeneration) => [
+        fn () => $this->actingAs($actor)->getJson(route('projects.generations.history', [$requestedProject])),
+        fn () => $this->actingAs($actor)->getJson(route('projects.generations.show', [$requestedProject, $requestedGeneration])),
+        fn () => $this->actingAs($actor)->getJson(route('projects.accepted-plan', [$requestedProject])),
+        fn () => $this->actingAs($actor)->putJson(
+            route('projects.generations.draft', [$requestedProject, $requestedGeneration]),
+            ['draft' => reviewPlan()],
+        ),
+        fn () => $this->actingAs($actor)->postJson(route('projects.generations.accept', [$requestedProject, $requestedGeneration])),
+        fn () => $this->actingAs($actor)->postJson(
+            route('projects.generations.regenerate', [$requestedProject, $requestedGeneration]),
+            ['instructions' => 'Change the angle.'],
+        ),
+    ];
+
+    foreach ($requests($user, $project, $generation) as $request) {
+        $request()->assertSuccessful();
+    }
+
+    $sameOwnerRequests = $requests($user, $project, $sameOwnerGeneration);
+
+    foreach ([1, 3, 4, 5] as $index) {
+        $sameOwnerRequests[$index]()->assertNotFound();
+    }
+
+    $requests($user, $project, $sameOwnerGeneration)[0]()->assertSuccessful();
+    $requests($user, $project, $sameOwnerGeneration)[2]()->assertSuccessful();
+
+    foreach ($requests($otherUser, $project, $generation) as $request) {
+        $request()->assertNotFound();
+    }
+
+    foreach ($requests($user, $otherProject, $otherGeneration) as $request) {
+        $request()->assertNotFound();
+    }
+});
+
 it('creates a new pending regeneration from saved draft instructions without provider or queue work in the request', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create([
@@ -307,7 +382,12 @@ it('returns the existing active generation instead of replacing its saved prompt
 
     $response
         ->assertStatus(202)
-        ->assertJsonPath('generation.id', $active->id);
+        ->assertJsonPath('generation.id', $active->id)
+        ->assertJsonPath('regeneration_queued', false)
+        ->assertJsonPath(
+            'message',
+            'A generation is already in progress. Your instructions were not queued.',
+        );
 
     expect(ContentGeneration::count())->toBe(2)
         ->and($active->fresh()->prompt)->toBe('Existing active prompt')
@@ -424,4 +504,46 @@ it('does not overwrite an accepted snapshot when a later generation is created',
 
     Queue::assertPushed(GenerateContentPlan::class);
     Http::assertNothingSent();
+});
+
+it('preserves the source draft and accepted snapshot when regeneration fails', function () {
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response(
+            ['error' => 'provider unavailable'],
+            500,
+        ),
+    ]);
+
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['user_id' => $user->id]);
+    $source = completedReviewGeneration($project, [
+        'draft' => [
+            ...reviewPlan(),
+            'suggested_title' => 'Saved source draft',
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->postJson(route('projects.generations.accept', [$project, $source]))
+        ->assertOk();
+
+    $response = $this->actingAs($user)->postJson(
+        route('projects.generations.regenerate', [$project, $source]),
+        ['instructions' => 'Try a different angle.'],
+    );
+
+    $regeneration = ContentGeneration::findOrFail(
+        $response->json('generation.id'),
+    );
+
+    (new GenerateContentPlan($regeneration->id))
+        ->handle(app(OpenAIService::class));
+
+    expect($regeneration->fresh()->status)->toBe('failed')
+        ->and($source->fresh()->draft['suggested_title'])
+        ->toBe('Saved source draft')
+        ->and($project->fresh()->acceptedContentPlan->content['suggested_title'])
+        ->toBe('Saved source draft');
+
+    Http::assertSentCount(1);
 });

@@ -31,7 +31,13 @@ class OpenAIService
         ContentGeneration $sourceGeneration,
         string $instructions,
     ): array {
-        $content = $sourceGeneration->draft ?? $sourceGeneration->response;
+        $draft = $sourceGeneration->getAttribute('draft');
+        $response = $sourceGeneration->getAttribute('response');
+        $content = is_array($draft)
+            ? $draft
+            : (is_array($response)
+                ? $response
+                : null);
 
         return [
             'prompt' => $this->buildRegenerationPrompt(

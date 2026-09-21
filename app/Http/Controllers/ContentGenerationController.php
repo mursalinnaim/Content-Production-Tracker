@@ -218,7 +218,10 @@ class ContentGenerationController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($generation->status !== 'completed') {
+            if (
+                $generation->status !== 'completed' ||
+                ($generation->response === null && $generation->draft === null)
+            ) {
                 abort(422, 'Only completed content plans can be regenerated.');
             }
 
@@ -274,8 +277,14 @@ class ContentGenerationController extends Controller
             }
         }
 
+        $regenerationQueued = $newGeneration->wasRecentlyCreated;
+
         return response()->json([
             'generation' => $this->generationPayload($newGeneration->fresh()),
+            'regeneration_queued' => $regenerationQueued,
+            'message' => $regenerationQueued
+                ? 'Regeneration queued.'
+                : 'A generation is already in progress. Your instructions were not queued.',
         ], 202);
     }
 
