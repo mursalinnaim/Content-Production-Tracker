@@ -565,18 +565,6 @@ The implementation documents the exactly-once limitation: a database transaction
 
 For a generation left in a `processing` state after an interrupted worker, the current implementation fails the generation safely rather than blindly re-queuing it. This avoids silently issuing a second paid provider request when the outcome of the original external request is unknown. Such generations should be reviewed before any manual retry.
 
-# Day 5 Verification Addendum
-
-## Automated verification
-
-- `npx vp test`: passed, 16 tests across 3 frontend/component files.
-- `npm run check`: passed with no formatting, lint, or warning failures.
-- `npm run type-check`: passed with no TypeScript errors.
-- `composer run lint:check`: passed.
-- `php artisan test --filter=ContentGenerationReviewTest`: passed, 17 tests and 97 assertions.
-- The Day 5 review suite now covers unauthenticated access to every review endpoint, rendered save-error preservation, and failed regeneration preserving the source draft and accepted snapshot.
-- `npm run build`: passed after the final test-discovery and implementation changes.
-
 ## End Time
 
 9 pm, Wednesday, September 9, 2026
@@ -585,7 +573,7 @@ For a generation left in a `processing` state after an interrupted worker, the c
 
 ## Date
 
-Tuesday, September 22, 2026
+9 pm, Monday, September 21, 2026
 
 ## Starting Branch and Commit
 
@@ -629,41 +617,101 @@ Day 4 remediation remained separate from the Day 5 feature. The existing impleme
 
 ## Verification
 
+### Focused Day 4 Feature Tests
+
 ```text
-composer ci:check
+
+php artisan test tests/Feature/ContentGenerationReviewTest.php
+
 ```
 
-- Passed: frontend formatting/lint, TypeScript, Pint, PHPStan, and Laravel tests.
-- Laravel result: 74 passed, 3 skipped, 363 assertions.
-- The skipped tests are the existing Fortify two-factor-authentication tests because 2FA is not enabled locally.
+PASS Tests\Feature\ContentGenerationReviewTest
+✓ it accepts the saved draft as an exact snapshot without calling OpenAI or the queue  
+✓ it accepts the original response when no draft exists  
+✓ it repeating acceptance of the same generation is a no-op  
+✓ it repeated acceptance replaces the current selection without creating history rows  
+✓ it rejects acceptance for another user and a wrong-project generation  
+✓ it rejects acceptance of an incomplete generation  
+✓ it loads the accepted plan only for its owning project  
+✓ it rejects unauthenticated access to every review endpoint  
+✓ it rejects another user and wrong-project generations for every review endpoint  
+✓ it creates a new pending regeneration from saved draft instructions without provider or queue work in the request  
+✓ it rejects blank regeneration instructions without creating work  
+✓ it rejects regeneration for an ineligible or unauthorized generation  
+✓ it returns the existing active generation instead of replacing its saved prompt  
+✓ it rejects unknown draft fields and unknown outline fields  
+✓ it keeps the original AI response unchanged when a draft is saved  
+✓ it marks only the currently accepted generation as accepted in history
+✓ it does not overwrite an accepted snapshot when a later generation is created
+✓ it preserves the source draft and accepted snapshot when regeneration fails
+
+Tests: 18 passed (123 assertions)
+
+### Frontend Regression Tests
 
 ```text
-npx vp test
+
+npm run test
+
 ```
 
-- Passed: 3 test files, 20 frontend/component tests.
+✓ tests/frontend/generationRequestGuard.test.ts (3 tests) 8ms  
+✓ resources/js/pages/Projects/tests/ContentGeneration.test.ts (3 tests) 211ms  
+✓ tests/frontend/ContentGeneration.test.ts (14 tests) 259ms
+
+Test Files 3 passed (3)
+Tests 20 passed (20)
+
+### TypeScript
 
 ```text
+
 npm run type-check
-npm run build
+
 ```
 
-- TypeScript check passed.
-- Production build passed. The build emitted only the existing optional `fontaine` optimization notice.
+- Passed with no TypeScript errors.
 
-The final history was regrouped into five meaningful commits:
+### Production Build
 
-- `515577e` `feat: add background generation and content review`
-- `9be40ce` `test: cover generation and review workflows`
-- `4ed45fa` `docs: document generation and content review`
-- `108f0d8` `fix: finalize review workflow safeguards`
-- `f345e9d` `docs: record final verification results`
+```text
 
-## Remaining Limitations
+npm run build
 
-- Screenshots, the 4–6 minute demonstration recording, and live manual workflow evidence still need to be attached outside the code repository.
-- Automated verification uses synthetic provider responses and makes no paid OpenAI requests.
+```
+
+- Passed successfully.
+
+### Full Project Quality Checks
+
+```text
+
+composer ci:check
+
+```
+
+- Formatting: passed.
+
+- Lint: passed with no warnings or errors.
+
+- TypeScript check: passed.
+
+- Pint: passed.
+
+- PHPStan: passed with no errors.
+
+- Full Laravel test suite: 3 skipped, 55 passed (234 assertions)
+
+- The 3 skipped tests are existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
+
+## What I Learned
+
+I learned how to keep AI-generated content, user edits, and accepted content separate so that later edits or regenerations cannot silently change earlier work.
+
+I also learned how background UI state introduces race conditions, especially when polling and delayed requests continue while the user switches versions or leaves the page.
+
+Finally, I learned that acceptance should create an immutable snapshot, while regeneration should create a completely separate generation so the user can review and choose between versions without losing previous work.
 
 ## End Time
 
-Not recorded.
+10 am, Tuesday, September 22, 2026

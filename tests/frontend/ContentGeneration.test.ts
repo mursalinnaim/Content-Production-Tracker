@@ -504,6 +504,13 @@ describe('content plan review', () => {
             .trigger('click');
 
         expect(wrapper.text()).toContain('Accepted plan');
+        expect(wrapper.text()).not.toContain('Restored accepted title');
+
+        await wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Accepted plan'))!
+            .trigger('click');
+
         expect(wrapper.text()).toContain('Restored accepted title');
     });
 

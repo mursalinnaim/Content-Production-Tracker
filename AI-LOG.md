@@ -314,27 +314,23 @@ The requested regression coverage is now committed in the repository. The focuse
 
 # Day 5
 
-## Entry 14 — Content Review Data Model
+## Entry 16 — Version History Design
 
 ### Task
 
-Add human review to generated content plans without overwriting the original AI response or losing earlier generations.
-
-### Prompt
-
-I asked AI how to model editable drafts, regenerated versions, and an accepted plan while keeping the existing generation statuses and database queue workflow.
+Decide how to preserve earlier AI generations and user edits.
 
 ### Suggested Solution
 
-AI recommended keeping the validated provider response immutable, storing one editable draft on each generation, linking regenerated generations to their source generation, and storing the accepted content as a separate project-level snapshot.
+AI suggested building a general-purpose versioning system that records every draft revision and supports branching between versions.
 
 ### My Decision
 
-I followed this structure because it keeps AI output, user edits, and the final selected plan separate. Acceptance uses the saved draft when available, otherwise the original response, and later draft edits cannot change the accepted snapshot silently.
+I rejected that approach because it was broader than the assignment. I kept one saved draft per generation and linked regenerated generations through source_generation_id.
 
-### Verification
+### Why This Fits the Assignment Better
 
-Added migrations, model relationships, ownership checks, structured draft validation, idempotent acceptance, regeneration prompt persistence, and history responses. The Laravel review tests verify draft immutability, accepted snapshots, source-generation links, and preservation after failed regeneration.
+The assignment explicitly says that per-keystroke history, branching, and a general document-versioning framework are out of scope. The smaller model preserves the original response, saved edits, regenerated versions, and accepted snapshot without unnecessary complexity.
 
 ## Entry 15 — Review Workflow and Regression Coverage
 

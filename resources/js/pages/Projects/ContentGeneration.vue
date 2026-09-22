@@ -5,6 +5,7 @@ import {
     isGenerationRequestInFlight,
     runGenerationRequest,
 } from './generationRequestGuard';
+import ContentPlanDisplay from './ContentPlanDisplay.vue';
 
 import type {
     AcceptedContentPlan,
@@ -46,6 +47,7 @@ const regenerationInstructions = ref('');
 const regenerationLoading = ref(false);
 const regenerationError = ref<string | null>(null);
 const regenerationNotice = ref<string | null>(null);
+const acceptedPlanOpen = ref(false);
 let pollingTimer: ReturnType<typeof window.setInterval> | undefined;
 let pollingInFlight = false;
 let disposed = false;
@@ -880,153 +882,54 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div class="mt-6 rounded-lg border p-5">
-                    <div class="flex items-center justify-between gap-4">
+                <div class="mt-6 rounded-lg border">
+                    <button
+                        type="button"
+                        class="hover:bg-muted flex w-full items-center justify-between gap-4 p-5 text-left"
+                        :aria-expanded="acceptedPlanOpen"
+                        @click="acceptedPlanOpen = !acceptedPlanOpen"
+                    >
                         <div>
                             <p class="text-sm font-semibold">Accepted plan</p>
                             <p class="text-muted-foreground mt-1 text-xs">
-                                The final snapshot explicitly chosen for this
-                                project.
+                                The final snapshot chosen for this project.
                             </p>
                         </div>
                         <span
                             v-if="acceptedContentPlan"
                             class="rounded-full border px-2.5 py-1 text-xs"
                         >
-                            {{
-                                isAcceptedVersion
-                                    ? 'Accepted version'
-                                    : 'Accepted snapshot'
-                            }}
+                            {{ acceptedPlanOpen ? '−' : '+' }}
                         </span>
+                    </button>
+
+                    <div
+                        v-if="acceptedPlanOpen && acceptedContentPlan"
+                        class="border-t p-5"
+                    >
+                        <ContentPlanDisplay
+                            :plan="acceptedContentPlan.content"
+                        />
+                        <div
+                            class="text-muted-foreground mt-5 border-t pt-3 text-xs"
+                        >
+                            Accepted from Generation #{ { generations.find(
+                            (item) => item.id ===
+                            acceptedContentPlan?.source_generation_id,
+                            )?.generation_number ??
+                            acceptedContentPlan?.source_generation_id } } on
+                            {{
+                                new Date(
+                                    acceptedContentPlan.accepted_at,
+                                ).toLocaleString()
+                            }}
+                        </div>
                     </div>
 
-                    <template v-if="acceptedContentPlan">
-                        <div class="mt-4 space-y-4">
-                            <div>
-                                <p
-                                    class="text-muted-foreground text-xs font-medium"
-                                >
-                                    SUGGESTED TITLE
-                                </p>
-                                <h3 class="mt-1 text-lg font-semibold">
-                                    {{
-                                        acceptedContentPlan.content
-                                            .suggested_title
-                                    }}
-                                </h3>
-                            </div>
-
-                            <div>
-                                <p class="text-sm font-medium">Content Brief</p>
-                                <p class="text-muted-foreground mt-1 text-sm">
-                                    {{
-                                        acceptedContentPlan.content
-                                            .content_brief
-                                    }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <p class="text-sm font-medium">Outline</p>
-                                <div class="mt-2 space-y-3">
-                                    <div
-                                        v-for="(
-                                            item, index
-                                        ) in acceptedContentPlan.content
-                                            .outline"
-                                        :key="index"
-                                        class="bg-muted/50 rounded-md p-3"
-                                    >
-                                        <p class="font-medium">
-                                            {{ item.heading }}
-                                        </p>
-                                        <p
-                                            class="text-muted-foreground mt-1 text-sm"
-                                        >
-                                            {{ item.purpose }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <p class="text-sm font-medium">Key Points</p>
-                                <ul
-                                    class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                                >
-                                    <li
-                                        v-for="(
-                                            point, index
-                                        ) in acceptedContentPlan.content
-                                            .key_points"
-                                        :key="index"
-                                    >
-                                        {{ point }}
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div>
-                                <p class="text-sm font-medium">
-                                    Production Tasks
-                                </p>
-                                <ul
-                                    class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                                >
-                                    <li
-                                        v-for="(
-                                            task, index
-                                        ) in acceptedContentPlan.content
-                                            .production_tasks"
-                                        :key="index"
-                                    >
-                                        {{ task }}
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div>
-                                <p class="text-sm font-medium">
-                                    Risks / Missing Information
-                                </p>
-                                <ul
-                                    class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                                >
-                                    <li
-                                        v-for="(
-                                            risk, index
-                                        ) in acceptedContentPlan.content
-                                            .risks_or_missing_information"
-                                        :key="index"
-                                    >
-                                        {{ risk }}
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <p
-                                class="text-muted-foreground border-t pt-3 text-xs"
-                            >
-                                Accepted from Generation #{{
-                                    generations.find(
-                                        (item) =>
-                                            item.id ===
-                                            acceptedContentPlan?.source_generation_id,
-                                    )?.generation_number ??
-                                    acceptedContentPlan?.source_generation_id
-                                }}
-                                on
-                                {{
-                                    new Date(
-                                        acceptedContentPlan.accepted_at,
-                                    ).toLocaleString()
-                                }}
-                            </p>
-                        </div>
-                    </template>
-
-                    <p v-else class="text-muted-foreground mt-4 text-sm">
+                    <p
+                        v-if="!acceptedContentPlan"
+                        class="text-muted-foreground px-5 pb-5 text-sm"
+                    >
                         No plan has been accepted yet.
                     </p>
                 </div>
@@ -1090,24 +993,6 @@ onBeforeUnmount(() => {
                                 {{ draftSaving ? 'Saving...' : 'Save draft' }}
                             </button>
                         </div>
-                    </div>
-
-                    <div
-                        v-if="
-                            acceptedContentPlan?.source_generation_id ===
-                            displayedGeneration.id
-                        "
-                        class="rounded-md border px-3 py-2 text-sm"
-                    >
-                        Accepted plan
-                        <span class="text-muted-foreground">
-                            —
-                            {{
-                                new Date(
-                                    acceptedContentPlan.accepted_at,
-                                ).toLocaleString()
-                            }}
-                        </span>
                     </div>
 
                     <p v-if="acceptanceError" class="text-destructive text-sm">
@@ -1304,97 +1189,7 @@ onBeforeUnmount(() => {
                         </div>
                     </template>
 
-                    <template v-else>
-                        <div>
-                            <p
-                                class="text-muted-foreground text-xs font-medium"
-                            >
-                                SUGGESTED TITLE
-                            </p>
-                            <h3 class="mt-1 text-lg font-semibold">
-                                {{ savedContentPlan.suggested_title }}
-                            </h3>
-                        </div>
-
-                        <div>
-                            <p class="text-sm font-medium">Content Brief</p>
-                            <p class="text-muted-foreground mt-1 text-sm">
-                                {{ savedContentPlan.content_brief }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <p class="text-sm font-medium">Outline</p>
-                            <div class="mt-2 space-y-3">
-                                <div
-                                    v-for="(
-                                        item, index
-                                    ) in savedContentPlan.outline"
-                                    :key="index"
-                                    class="bg-muted/50 rounded-md p-3"
-                                >
-                                    <p class="font-medium">
-                                        {{ item.heading }}
-                                    </p>
-                                    <p
-                                        class="text-muted-foreground mt-1 text-sm"
-                                    >
-                                        {{ item.purpose }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p class="text-sm font-medium">Key Points</p>
-                            <ul
-                                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                            >
-                                <li
-                                    v-for="(
-                                        point, index
-                                    ) in savedContentPlan.key_points"
-                                    :key="index"
-                                >
-                                    {{ point }}
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <p class="text-sm font-medium">Production Tasks</p>
-                            <ul
-                                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                            >
-                                <li
-                                    v-for="(
-                                        task, index
-                                    ) in savedContentPlan.production_tasks"
-                                    :key="index"
-                                >
-                                    {{ task }}
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <p class="text-sm font-medium">
-                                Risks / Missing Information
-                            </p>
-                            <ul
-                                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-                            >
-                                <li
-                                    v-for="(
-                                        risk, index
-                                    ) in savedContentPlan.risks_or_missing_information"
-                                    :key="index"
-                                >
-                                    {{ risk }}
-                                </li>
-                            </ul>
-                        </div>
-                    </template>
+                    <ContentPlanDisplay v-else :plan="savedContentPlan" />
                 </div>
             </div>
         </template>
