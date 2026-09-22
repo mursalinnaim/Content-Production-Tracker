@@ -632,7 +632,7 @@ The Day 5 implementation was developed on the separate
 
 ## Verification
 
-### Focused Day 4 Feature Tests
+### Focused Day 5 Feature Tests
 
 ```text
 
@@ -661,6 +661,18 @@ PASS Tests\Feature\ContentGenerationReviewTest
 ✓ it preserves the source draft and accepted snapshot when regeneration fails
 
 Tests: 18 passed (123 assertions)
+
+### Full Test Suite
+
+```text
+php artisan test
+```
+
+- Tests: 74 passed (363 assertions)
+- 3 tests skipped
+- 0 tests failed
+- Duration: 5.81s
+- Passed with no failures.
 
 ### Frontend Regression Tests
 
