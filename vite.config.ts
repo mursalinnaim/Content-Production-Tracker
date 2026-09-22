@@ -42,6 +42,13 @@ export default defineConfig({
             ],
         },
     },
+    test: {
+        include: [
+            'tests/frontend/**/*.test.ts',
+            'resources/js/**/__tests__/**/*.test.ts',
+        ],
+        environment: 'jsdom',
+    },
     lint: {
         ignorePatterns: [
             'vendor/**',
