@@ -314,7 +314,7 @@ The requested regression coverage is now committed in the repository. The focuse
 
 # Day 5
 
-## Entry 16 — Version History Design
+## Entry 14 — Version History Design
 
 ### Task
 

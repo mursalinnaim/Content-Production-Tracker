@@ -580,6 +580,16 @@ For a generation left in a `processing` state after an interrupted worker, the c
 - Branch: `feature/content-plan-review`
 - Starting commit: `4fad87e` (`main`)
 
+## Baseline Verification
+
+Starting commit: `4fad87e21a8a70f3c5ac60062c439f4d36e87243`
+
+Commands run from the Day 5 starting commit:
+
+- `npm run build` — PASS. Vite build completed successfully in 12.31s. The build reported an optional `fontaine` package warning, but completed successfully.
+- `composer ci:check` — PASS. Formatting passed for 65 files, type checking passed, PHPStan reported no errors, and the Laravel test suite passed with 3 skipped and 45 passed (167 assertions).
+- `npm run type-check` — PASS. `vue-tsc --noEmit` completed successfully.
+
 ## Task
 
 Implement human review for completed AI content plans: edit and save drafts, accept a final snapshot, regenerate with instructions, preserve generation history, and keep the original AI response separate from user edits.
@@ -590,7 +600,12 @@ Created `docs/CONTENT-REVIEW-SPEC.md` before implementation. The design keeps th
 
 ## Day 4 Follow-up
 
-Day 4 remediation remained separate from the Day 5 feature. The existing implementation and regression coverage address NCP-015 through NCP-019: first-request errors, late-response polling cleanup, reactive request state, independent worker startup, bounded retries, worker failure/recovery handling, terminal duplicate jobs, stray-request prevention, and concurrency evidence.
+Day 4 PR #11 was still under review when Day 5 work began.
+Day 5 was started from the Day 4/main baseline commit
+`4fad87e21a8a70f3c5ac60062c439f4d36e87243`.
+
+The Day 5 implementation was developed on the separate
+`feature/content-plan-review` branch.
 
 ## Day 5 Implementation
 
