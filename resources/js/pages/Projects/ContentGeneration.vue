@@ -360,7 +360,11 @@ const selectedGeneration = computed<ProjectGeneration | null>(() => {
 });
 
 const displayedGeneration = computed<ProjectGeneration | null>(() => {
-    return selectedGeneration.value ?? generation.value;
+    if (selectedGenerationId.value !== null) {
+        return selectedGeneration.value;
+    }
+
+    return generation.value;
 });
 
 const loadGenerationDetail = async (id: number): Promise<void> => {
@@ -391,7 +395,10 @@ const loadGenerationDetail = async (id: number): Promise<void> => {
             ).generation;
         }
     } catch {
-        historyError.value = 'Unable to load the selected generation.';
+        if (selectedGenerationId.value === id) {
+            selectedGenerationDetail.value = null;
+            historyError.value = 'Unable to load the selected generation.';
+        }
     }
 };
 
@@ -442,7 +449,7 @@ const isAcceptedVersion = computed(() => {
 });
 
 const getReviewGeneration = (): ProjectGeneration | null => {
-    return displayedGeneration.value ?? generation.value;
+    return displayedGeneration.value;
 };
 
 const startEditing = (): void => {
@@ -540,6 +547,7 @@ const updateGenerationInHistory = (
 
 const saveDraft = async (): Promise<void> => {
     const value = displayedGeneration.value;
+    const targetGenerationId = value?.id ?? null;
 
     if (
         value?.status !== 'completed' ||
@@ -585,6 +593,15 @@ const saveDraft = async (): Promise<void> => {
         }
 
         const updatedGeneration = (data as GenerationResponse).generation;
+
+        if (
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
+        ) {
+            return;
+        }
+
         updateGenerationInHistory(updatedGeneration);
 
         if (generation.value?.id === updatedGeneration.id) {
@@ -601,6 +618,14 @@ const saveDraft = async (): Promise<void> => {
 
         isEditing.value = false;
     } catch (saveError) {
+        if (
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
+        ) {
+            return;
+        }
+
         draftError.value =
             saveError instanceof Error
                 ? saveError.message
@@ -612,6 +637,7 @@ const saveDraft = async (): Promise<void> => {
 
 const acceptGeneration = async (): Promise<void> => {
     const value = getReviewGeneration();
+    const targetGenerationId = value?.id ?? null;
     const content = value?.draft ?? value?.response ?? null;
 
     if (
@@ -655,10 +681,26 @@ const acceptGeneration = async (): Promise<void> => {
             throw new Error('Invalid acceptance response.');
         }
 
+        if (
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
+        ) {
+            return;
+        }
+
         acceptedContentPlan.value = (
             data as AcceptedContentPlanResult
         ).accepted_content_plan;
     } catch (acceptError) {
+        if (
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
+        ) {
+            return;
+        }
+
         acceptanceError.value =
             acceptError instanceof Error
                 ? acceptError.message
@@ -670,6 +712,7 @@ const acceptGeneration = async (): Promise<void> => {
 
 const regenerateContentPlan = async (): Promise<void> => {
     const value = getReviewGeneration();
+    const targetGenerationId = value?.id ?? null;
     const instructions = regenerationInstructions.value.trim();
 
     if (
@@ -723,24 +766,42 @@ const regenerateContentPlan = async (): Promise<void> => {
             regeneration_queued?: boolean;
         };
         const newGeneration = regenerationResponse.generation;
-        updateGenerationInHistory(newGeneration);
-        generation.value = newGeneration;
-        selectedGenerationId.value = newGeneration.id;
-        selectedGenerationDetail.value = newGeneration;
-        generationMenuOpen.value = true;
-        regenerationInstructions.value = '';
 
         if (
-            regenerationResponse.regeneration_queued === false &&
-            typeof regenerationResponse.message === 'string'
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
         ) {
-            regenerationNotice.value = regenerationResponse.message;
+            return;
+        }
+
+        updateGenerationInHistory(newGeneration);
+
+        if (regenerationResponse.regeneration_queued === false) {
+            regenerationNotice.value =
+                typeof regenerationResponse.message === 'string'
+                    ? regenerationResponse.message
+                    : 'Your instructions were not queued because another generation is already active.';
+        } else {
+            generation.value = newGeneration;
+            selectedGenerationId.value = newGeneration.id;
+            selectedGenerationDetail.value = newGeneration;
+            generationMenuOpen.value = true;
+            regenerationInstructions.value = '';
         }
 
         if (isActive(newGeneration)) {
             startPolling();
         }
     } catch (regenError) {
+        if (
+            disposed ||
+            targetGenerationId === null ||
+            selectedGenerationId.value !== targetGenerationId
+        ) {
+            return;
+        }
+
         regenerationError.value =
             regenError instanceof Error
                 ? regenError.message
@@ -773,6 +834,19 @@ const removeListItem = (
 ): void => {
     draft.value?.[field].splice(index, 1);
 };
+
+const acceptedSourceGenerationNumber = computed<number | null>(() => {
+    if (acceptedContentPlan.value === null) {
+        return null;
+    }
+
+    return (
+        generations.value.find(
+            (item) =>
+                item.id === acceptedContentPlan.value?.source_generation_id,
+        )?.generation_number ?? acceptedContentPlan.value.source_generation_id
+    );
+});
 
 const editableListFields = [
     'key_points',
@@ -878,6 +952,12 @@ onBeforeUnmount(() => {
                                     )
                                 }}
                             </span>
+                            <span
+                                v-if="item.is_accepted"
+                                class="mt-1 block text-xs font-medium"
+                            >
+                                Accepted
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -913,17 +993,39 @@ onBeforeUnmount(() => {
                         <div
                             class="text-muted-foreground mt-5 border-t pt-3 text-xs"
                         >
-                            Accepted from Generation #{ { generations.find(
-                            (item) => item.id ===
-                            acceptedContentPlan?.source_generation_id,
-                            )?.generation_number ??
-                            acceptedContentPlan?.source_generation_id } } on
+                            Accepted from Generation #{{
+                                acceptedSourceGenerationNumber
+                            }}
+                            on
                             {{
                                 new Date(
                                     acceptedContentPlan.accepted_at,
                                 ).toLocaleString()
                             }}
                         </div>
+                    </div>
+
+                    <p
+                        v-if="regenerationNotice"
+                        class="text-muted-foreground mt-4 text-sm"
+                    >
+                        {{ regenerationNotice }}
+                    </p>
+
+                    <div
+                        v-if="
+                            selectedGenerationId !== null &&
+                            selectedGenerationDetail === null
+                        "
+                        class="mt-6 rounded-lg border p-5"
+                    >
+                        <p class="text-sm font-medium">
+                            Loading selected generation...
+                        </p>
+                        <p class="text-muted-foreground mt-2 text-sm">
+                            Review actions are disabled until this version
+                            finishes loading.
+                        </p>
                     </div>
 
                     <p

@@ -424,6 +424,59 @@ it('rejects unknown draft fields and unknown outline fields', function () {
     expect($generation->fresh()->draft)->toBeNull();
 });
 
+it('rejects keyed objects for every draft collection field without changing the draft', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['user_id' => $user->id]);
+    $originalDraft = reviewPlan();
+    $generation = completedReviewGeneration($project, ['draft' => $originalDraft]);
+
+    foreach (['outline', 'key_points', 'production_tasks', 'risks_or_missing_information'] as $field) {
+        $invalidDraft = [
+            ...reviewPlan(),
+            $field => ['unexpected_key' => 'Not a list'],
+        ];
+
+        $this->actingAs($user)
+            ->putJson(
+                route('projects.generations.draft', [$project, $generation]),
+                ['draft' => $invalidDraft],
+            )
+            ->assertUnprocessable();
+
+        expect($generation->fresh()->draft)->toBe($originalDraft);
+    }
+});
+
+it('accepts sequential lists and rejects malformed list members in every draft collection field', function () {
+    $user = User::factory()->create();
+    $project = Project::factory()->create(['user_id' => $user->id]);
+    $generation = completedReviewGeneration($project);
+
+    $this->actingAs($user)
+        ->putJson(
+            route('projects.generations.draft', [$project, $generation]),
+            ['draft' => reviewPlan()],
+        )
+        ->assertOk();
+
+    foreach (['outline', 'key_points', 'production_tasks', 'risks_or_missing_information'] as $field) {
+        $invalidDraft = reviewPlan();
+
+        $invalidDraft[$field] = $field === 'outline'
+            ? [['heading' => 'Only heading']]
+            : [['unexpected_key' => 'Not a string']];
+
+        $this->actingAs($user)
+            ->putJson(
+                route('projects.generations.draft', [$project, $generation]),
+                ['draft' => $invalidDraft],
+            )
+            ->assertUnprocessable();
+    }
+
+    expect($generation->fresh()->draft)->toBe(reviewPlan());
+});
+
 it('keeps the original AI response unchanged when a draft is saved', function () {
     $user = User::factory()->create();
     $project = Project::factory()->create(['user_id' => $user->id]);

@@ -493,7 +493,7 @@ composer ci:check
 
 - PHPStan: passed with no errors.
 
-- Full Laravel test suite: 3 skipped, 55 passed (234 assertions)
+- Full Laravel test suite: 3 skipped, 76 passed (377 assertions)
 
 - The 3 skipped tests are existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
 
@@ -742,3 +742,115 @@ Finally, I learned that acceptance should create an immutable snapshot, while re
 ## End Time
 
 10 am, Tuesday, September 22, 2026
+
+# Day 6 Review Follow-up
+
+## Review Findings Addressed
+
+- NCP-020: historical generation selection now distinguishes an explicit selection from an unloaded detail. Review actions remain disabled until the selected generation detail is loaded, and delayed save/accept/regenerate continuations are ignored if the user has switched versions or left the page.
+- NCP-021: draft outline, key_points, production_tasks, and risks_or_missing_information fields now require sequential lists in addition to the existing nested member validation and unknown-key rejection.
+- NCP-022: the reused-active-generation notice is rendered outside the completed-plan-only section, and regeneration instructions remain in the form when no new work was queued.
+- NCP-023: the accepted-plan footer now uses valid Vue interpolation and the generation history visibly marks the accepted source.
+
+## Regression Coverage Added
+
+- Delayed historical detail while switching from a newer completed generation to an older generation.
+- Out-of-order historical detail responses.
+- Reused pending/processing regeneration work with preserved instructions and no second submission.
+- Accepted source generation number and accepted history marker.
+- Keyed-object rejection for every draft collection field.
+- Valid sequential draft lists and malformed member rejection for every draft collection field.
+
+## MySQL Concurrency Evidence
+
+**Status: Completed**
+
+The active-generation protection was verified with two genuinely concurrent requests against MySQL using the database queue driver.
+
+### Environment
+
+- Database: MySQL
+- Queue driver: database
+- Queue: `default`
+
+### Reproduction
+
+1. Used an authenticated `POST /projects/{project}/generations` request copied as cURL.
+2. Executed two identical requests concurrently from Git Bash:
+
+```bash
+( time bash request.sh > response1.json 2>time1.txt ) & \
+( time bash request.sh > response2.json 2>time2.txt ) & \
+wait
+```
+
+3. Checked both response files and recorded the returned generation IDs and request timings.
+4. Checked MySQL through Laravel Tinker for the project's active generations.
+5. Checked the database queue for the corresponding `GenerateContentPlan` job.
+
+### Observed Result
+
+- Request 1 generation ID: `2`
+- Request 2 generation ID: `2`
+- Active generations for the project: `1`
+- Corresponding queued generation jobs: `1`
+
+Both concurrent requests returned the same generation ID. MySQL contained only one active generation for the project and one corresponding queued job.
+
+The concurrency evidence was captured with screenshots in the PR.
+
+## Stopped Worker Recovery Evidence
+
+The database queue was also tested with the worker stopped.
+
+### Worker stopped
+
+The generation remained `pending` while its database queue job waited for a consumer:
+
+```text
+ContentGeneration::where('status','pending')->latest()->first(['id','project_id','status']);
+
+= App\Models\ContentGeneration {
+    id: 5,
+    project_id: 1,
+    status: "pending",
+  }
+
+DB::table('jobs')->where('queue','default')->count();
+
+= 1
+```
+
+This confirms the web request persisted the generation and queued job without requiring a running worker to consume it immediately.
+
+### Worker restarted
+
+After restarting the queue worker, the pending job was consumed and the generation completed successfully:
+
+```text
+ContentGeneration::latest()->first(['id','project_id','status']);
+
+= App\Models\ContentGeneration {
+    id: 5,
+    project_id: 1,
+    status: "completed",
+  }
+
+DB::table('jobs')->where('queue','default')->count();
+
+= 0
+```
+
+This verifies recovery through Laravel's persistent database queue: work that was waiting while the worker was stopped was consumed after the worker restarted.
+
+## Verification Status
+
+The final post-fix verification was run from the updated branch.
+
+- `php artisan test` — 76 passed, 3 skipped, 377 assertions.
+- `npm run test` — 24 frontend tests passed across 3 test files.
+- `npm run type-check` — passed.
+- `npm run build` — passed.
+- `composer ci:check` — passed.
+
+The 3 skipped Laravel tests are the existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.

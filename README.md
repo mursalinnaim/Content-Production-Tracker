@@ -162,6 +162,40 @@ Never commit the API key or put it in Vue code, frontend environment variables, 
 
 Each generation records the project, status, accepted prompt, configured model, structured response, token usage, safe error information, processing timestamp, completion timestamp, and normal Eloquent timestamps. Existing Day 3 completed/failed records remain valid.
 
+## Content Plan Review
+
+After a generation reaches `completed`, the project owner can review that specific version from the generation history.
+
+The Day 5 workflow is:
+
+```text
+Completed generation
+        ↓
+Open generation history
+        ↓
+Select a version
+        ↓
+Edit → Save draft (stored separately from the original response)
+        ↓
+Accept → immutable accepted snapshot
+        ↓
+Regenerate with instructions → separate queued generation
+        ↓
+Select and review the new generation
+```
+
+Historical versions are loaded independently. While a selected version is loading or has failed to load, review actions remain unavailable rather than falling back to another generation. Accepted history entries identify their source generation.
+
+The frontend regression suite includes transition/race-condition coverage for delayed historical detail responses, out-of-order version responses, reused active regeneration work, and accepted-source rendering:
+
+```bash
+npm run test
+```
+
+If regeneration finds an existing pending/processing generation, the request is not submitted again. The entered instructions remain in the form and a notice explains that they were not queued.
+
+The content plan uses the same six application fields throughout generation and editing. The allowed project fields used to construct the AI prompt are `title`, `content_type`, `brief`, and `notes`; selecting those fields does not guarantee that private information a user writes inside them is absent from the prompt.
+
 ## Testing
 
 Automated tests use faked OpenAI responses and do not consume API credits. The focused generation tests cover request/queue separation, ownership, incomplete projects, duplicate active requests, status authorization, worker success, provider failure, terminal-generation protection, and saved-model behavior.
@@ -174,13 +208,63 @@ npm run build
 composer ci:check
 ```
 
+## Final Verification (Day 6 Review Fixes)
+
+The final post-fix local verification was run on the updated branch.
+
+### Backend
+
+```bash
+php artisan test
+```
+
+- **76 tests passed**
+- **3 tests skipped**
+- **377 assertions**
+- 0 tests failed
+
+The skipped tests are the existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
+
+### Frontend
+
+```bash
+npm run test
+```
+
+- **3 test files passed**
+- **24 tests passed**
+
+The frontend suite includes regression coverage for historical generation selection/loading, out-of-order responses, reused active regeneration work, and accepted-source rendering.
+
+### Additional Quality Checks
+
+```bash
+composer ci:check
+npm run type-check
+npm run build
+```
+
+These checks passed during the final verification run.
+
+## Final Verification (Day 6 Review Fixes)
+
+The final post-fix local verification was run on the updated branch.
+
+- `php artisan test` — **76 passed, 3 skipped, 377 assertions**
+- `npm run test` — **24 frontend tests passed across 3 test files**
+- `npm run type-check` — passed
+- `npm run build` — passed
+- `composer ci:check` — passed
+
+The skipped Laravel tests are the existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
+
 ## Security
 
 - Only authenticated users can generate content plans.
 - Users can only generate plans for their own projects.
 - Ownership is checked before any provider call.
 - API credentials remain server-side.
-- Credentials and unrelated user data are excluded from prompts.
+- Only the documented project fields are selected for prompts; users remain responsible for not entering private information into those fields.
 - Provider details are not exposed to users.
 - AI output is validated before storage.
 - Automated tests do not make real provider requests.

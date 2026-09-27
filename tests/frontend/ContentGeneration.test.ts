@@ -74,6 +74,461 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+describe('Day 6 review transition regressions', () => {
+    it('does not fall back to another generation while historical detail is loading', async () => {
+        let resolveDetail!: (response: Response) => void;
+        const detailRequest = new Promise<Response>((resolve) => {
+            resolveDetail = resolve;
+        });
+
+        const fetchMock = vi
+            .spyOn(globalThis, 'fetch')
+            .mockImplementation((input, init) => {
+                const url = requestUrl(input);
+
+                if (url.endsWith('/generations') && !init?.method) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            generations: [
+                                {
+                                    id: 2,
+                                    generation_number: 2,
+                                    status: 'completed',
+                                    source_generation_id: null,
+                                    has_draft: false,
+                                    is_accepted: false,
+                                    regeneration_instructions: null,
+                                    processing_started_at: null,
+                                    completed_at: '2026-09-22T11:00:00Z',
+                                },
+                                {
+                                    id: 1,
+                                    generation_number: 1,
+                                    status: 'completed',
+                                    source_generation_id: null,
+                                    has_draft: false,
+                                    is_accepted: false,
+                                    regeneration_instructions: null,
+                                    processing_started_at: null,
+                                    completed_at: '2026-09-22T10:00:00Z',
+                                },
+                            ],
+                        }),
+                    );
+                }
+
+                if (url.endsWith('/accepted-plan')) {
+                    return Promise.resolve(
+                        jsonResponse({ accepted_content_plan: null }),
+                    );
+                }
+
+                if (url.endsWith('/generations/1')) {
+                    return detailRequest;
+                }
+
+                if (url.endsWith('/generations/2')) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            generation: completedGeneration({
+                                id: 2,
+                                generation_number: 2,
+                                response: {
+                                    ...completedPlan,
+                                    suggested_title: 'Generation two',
+                                },
+                            }),
+                        }),
+                    );
+                }
+
+                if (
+                    init?.method === 'POST' &&
+                    url.endsWith('/generations/1/accept')
+                ) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            accepted_content_plan: {
+                                id: 5,
+                                source_generation_id: 1,
+                                content: completedPlan,
+                                accepted_at: '2026-09-22T12:00:00Z',
+                            },
+                        }),
+                    );
+                }
+
+                return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+            });
+
+        const wrapper = mount(ContentGeneration, {
+            props: {
+                projectId: 77,
+                initialGeneration: completedGeneration({
+                    id: 2,
+                    generation_number: 2,
+                    response: {
+                        ...completedPlan,
+                        suggested_title: 'Generation two',
+                    },
+                }),
+            },
+        });
+
+        await flushPromises();
+        await wrapper
+            .get('button', { text: /Content Generation/ })
+            .trigger('click');
+
+        await wrapper
+            .findAll('button')
+            .find((button) => /Generation #1\s+—/.test(button.text()))!
+            .trigger('click');
+
+        expect(wrapper.text()).toContain('Loading selected generation...');
+        expect(wrapper.text()).not.toContain('Generation two');
+        expect(
+            wrapper
+                .findAll('button')
+                .some((button) => button.text().trim() === 'Accept this plan'),
+        ).toBe(false);
+
+        resolveDetail(
+            jsonResponse({
+                generation: completedGeneration({
+                    id: 1,
+                    generation_number: 1,
+                    response: completedPlan,
+                }),
+            }),
+        );
+        await flushPromises();
+
+        await wrapper
+            .findAll('button')
+            .find((button) => button.text().trim() === 'Accept this plan')!
+            .trigger('click');
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/projects/77/generations/1/accept',
+            expect.objectContaining({ method: 'POST' }),
+        );
+        expect(fetchMock).not.toHaveBeenCalledWith(
+            '/projects/77/generations/2/accept',
+            expect.objectContaining({ method: 'POST' }),
+        );
+    });
+
+    it('ignores out-of-order historical detail responses', async () => {
+        let resolveFirst!: (response: Response) => void;
+        let resolveSecond!: (response: Response) => void;
+
+        const first = new Promise<Response>((resolve) => {
+            resolveFirst = resolve;
+        });
+        const second = new Promise<Response>((resolve) => {
+            resolveSecond = resolve;
+        });
+
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = requestUrl(input);
+
+            if (url.endsWith('/generations') && !init?.method) {
+                return Promise.resolve(
+                    jsonResponse({
+                        generations: [
+                            {
+                                id: 3,
+                                generation_number: 3,
+                                status: 'completed',
+                                source_generation_id: null,
+                                has_draft: false,
+                                is_accepted: false,
+                                regeneration_instructions: null,
+                                processing_started_at: null,
+                                completed_at: null,
+                            },
+                            {
+                                id: 2,
+                                generation_number: 2,
+                                status: 'completed',
+                                source_generation_id: null,
+                                has_draft: false,
+                                is_accepted: false,
+                                regeneration_instructions: null,
+                                processing_started_at: null,
+                                completed_at: null,
+                            },
+                            {
+                                id: 1,
+                                generation_number: 1,
+                                status: 'completed',
+                                source_generation_id: null,
+                                has_draft: false,
+                                is_accepted: false,
+                                regeneration_instructions: null,
+                                processing_started_at: null,
+                                completed_at: null,
+                            },
+                        ],
+                    }),
+                );
+            }
+
+            if (url.endsWith('/accepted-plan')) {
+                return Promise.resolve(
+                    jsonResponse({ accepted_content_plan: null }),
+                );
+            }
+
+            if (url.endsWith('/generations/2')) return first;
+            if (url.endsWith('/generations/1')) return second;
+
+            return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+        });
+
+        const wrapper = mount(ContentGeneration, {
+            props: {
+                projectId: 77,
+                initialGeneration: completedGeneration({
+                    id: 3,
+                    generation_number: 3,
+                    response: {
+                        ...completedPlan,
+                        suggested_title: 'Generation three',
+                    },
+                }),
+            },
+        });
+
+        await flushPromises();
+        await wrapper
+            .get('button', { text: /Content Generation/ })
+            .trigger('click');
+
+        const buttons = wrapper.findAll('button');
+        await buttons
+            .find((button) => /Generation #2\s+—/.test(button.text()))!
+            .trigger('click');
+        await buttons
+            .find((button) => /Generation #1\s+—/.test(button.text()))!
+            .trigger('click');
+
+        resolveFirst(
+            jsonResponse({
+                generation: completedGeneration({
+                    id: 2,
+                    generation_number: 2,
+                    response: {
+                        ...completedPlan,
+                        suggested_title: 'Generation two',
+                    },
+                }),
+            }),
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Loading selected generation...');
+
+        resolveSecond(
+            jsonResponse({
+                generation: completedGeneration({
+                    id: 1,
+                    generation_number: 1,
+                    response: {
+                        ...completedPlan,
+                        suggested_title: 'Generation one',
+                    },
+                }),
+            }),
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Generation one');
+        expect(wrapper.text()).not.toContain('Generation two');
+    });
+
+    it('keeps regeneration instructions visible when existing active work is reused', async () => {
+        const fetchMock = vi
+            .spyOn(globalThis, 'fetch')
+            .mockImplementation((input, init) => {
+                const url = requestUrl(input);
+
+                if (url.endsWith('/generations') && !init?.method) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            generations: [
+                                {
+                                    id: 7,
+                                    generation_number: 1,
+                                    status: 'completed',
+                                    source_generation_id: null,
+                                    has_draft: false,
+                                    is_accepted: false,
+                                    regeneration_instructions: null,
+                                    processing_started_at: null,
+                                    completed_at: null,
+                                },
+                                {
+                                    id: 8,
+                                    generation_number: 2,
+                                    status: 'processing',
+                                    source_generation_id: 7,
+                                    has_draft: false,
+                                    is_accepted: false,
+                                    regeneration_instructions:
+                                        'Existing instructions',
+                                    processing_started_at:
+                                        '2026-09-22T11:00:00Z',
+                                    completed_at: null,
+                                },
+                            ],
+                        }),
+                    );
+                }
+
+                if (url.endsWith('/accepted-plan')) {
+                    return Promise.resolve(
+                        jsonResponse({ accepted_content_plan: null }),
+                    );
+                }
+
+                if (url.endsWith('/generations/7')) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            generation: completedGeneration({ id: 7 }),
+                        }),
+                    );
+                }
+
+                if (
+                    init?.method === 'POST' &&
+                    url.endsWith('/generations/7/regenerate')
+                ) {
+                    return Promise.resolve(
+                        jsonResponse({
+                            generation: generation({
+                                id: 8,
+                                generation_number: 2,
+                                status: 'processing',
+                                response: null,
+                                source_generation_id: 7,
+                                regeneration_instructions:
+                                    'Existing instructions',
+                            }),
+                            regeneration_queued: false,
+                            message:
+                                'A generation is already in progress. Your instructions were not queued.',
+                        }),
+                    );
+                }
+
+                return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+            });
+
+        const wrapper = mount(ContentGeneration, {
+            props: {
+                projectId: 77,
+                initialGeneration: completedGeneration({ id: 7 }),
+            },
+        });
+
+        await flushPromises();
+        await wrapper
+            .get('button', { text: /Content Generation/ })
+            .trigger('click');
+
+        const textarea = wrapper.get('textarea');
+        await textarea.setValue('Try a different angle.');
+        await wrapper
+            .findAll('button')
+            .find((button) => button.text().trim() === 'Regenerate')!
+            .trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(
+            'A generation is already in progress. Your instructions were not queued.',
+        );
+        expect((textarea.element as HTMLTextAreaElement).value).toBe(
+            'Try a different angle.',
+        );
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('shows the accepted source generation number and accepted history marker', async () => {
+        vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    generations: [
+                        {
+                            id: 7,
+                            generation_number: 2,
+                            status: 'completed',
+                            source_generation_id: 6,
+                            has_draft: false,
+                            is_accepted: true,
+                            regeneration_instructions: null,
+                            processing_started_at: null,
+                            completed_at: null,
+                        },
+                        {
+                            id: 6,
+                            generation_number: 1,
+                            status: 'completed',
+                            source_generation_id: null,
+                            has_draft: false,
+                            is_accepted: false,
+                            regeneration_instructions: null,
+                            processing_started_at: null,
+                            completed_at: null,
+                        },
+                    ],
+                }),
+            )
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    accepted_content_plan: {
+                        id: 9,
+                        source_generation_id: 6,
+                        content: completedPlan,
+                        accepted_at: '2026-09-22T12:00:00Z',
+                    },
+                }),
+            );
+
+        const wrapper = mount(ContentGeneration, {
+            props: {
+                projectId: 77,
+                initialGeneration: completedGeneration({
+                    id: 7,
+                    generation_number: 2,
+                }),
+            },
+        });
+
+        await flushPromises();
+        await wrapper
+            .get('button', { text: /Content Generation/ })
+            .trigger('click');
+
+        expect(wrapper.text()).toContain('Generation #2');
+        expect(
+            wrapper
+                .findAll('button')
+                .find((button) => /Generation #2\s+—/.test(button.text()))!
+                .text(),
+        ).toContain('Accepted');
+
+        await wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Accepted plan'))!
+            .trigger('click');
+
+        expect(wrapper.text()).toContain('Accepted from Generation #1 on');
+    });
+});
+
 describe('ContentGeneration', () => {
     it('shows a request error when the generation POST fails before a generation exists', async () => {
         vi.spyOn(globalThis, 'fetch').mockResolvedValue(
