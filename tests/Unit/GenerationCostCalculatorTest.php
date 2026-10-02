@@ -45,6 +45,7 @@ it('returns configured pricing snapshots for allowed models', function () {
         ->and($pricing['currency'])->toBe('USD');
 });
 
-it('returns no pricing for an unknown model', function () {
-    expect((new GenerationCostCalculator)->pricingFor('unknown-model'))->toBeArray();
+it('rejects an unknown model pricing lookup', function () {
+    expect(fn () => (new GenerationCostCalculator)->pricingFor('unknown-model'))
+        ->toThrow(InvalidArgumentException::class);
 });
