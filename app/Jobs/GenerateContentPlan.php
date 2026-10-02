@@ -33,8 +33,9 @@ class GenerateContentPlan implements ShouldQueue
 
     public function handle(
         OpenAIService $openAIService,
-        GenerationCostCalculator $costCalculator,
+        ?GenerationCostCalculator $costCalculator = null,
     ): void {
+        $costCalculator ??= app(GenerationCostCalculator::class);
         $generation = ContentGeneration::find($this->generationId);
 
         if ($generation === null || in_array($generation->status, ['completed', 'failed'], true)) {
