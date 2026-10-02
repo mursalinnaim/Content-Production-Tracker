@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exceptions\ContentGenerationException;
 use App\Models\ContentGeneration;
+use App\Services\GenerationCostCalculator;
 use App\Services\OpenAIService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -16,16 +17,11 @@ class GenerateContentPlan implements ShouldQueue
     use InteractsWithQueue, Queueable;
 
     public int $tries = 2;
-
     public int $timeout = 75;
 
-    public function __construct(
-        public int $generationId,
-    ) {}
+    public function __construct(public int $generationId) {}
 
-    /**
-     * @return array<int, object>
-     */
+    /** @return array<int, object> */
     public function middleware(): array
     {
         return [
@@ -35,8 +31,10 @@ class GenerateContentPlan implements ShouldQueue
         ];
     }
 
-    public function handle(OpenAIService $openAIService): void
-    {
+    public function handle(
+        OpenAIService $openAIService,
+        GenerationCostCalculator $costCalculator,
+    ): void {
         $generation = ContentGeneration::find($this->generationId);
 
         if ($generation === null || in_array($generation->status, ['completed', 'failed'], true)) {
@@ -44,11 +42,7 @@ class GenerateContentPlan implements ShouldQueue
         }
 
         if ($generation->status === 'processing') {
-            $this->markFailedIfStillActive(
-                'worker_recovery_required',
-                'The generation could not be completed safely by the worker.',
-            );
-
+            $this->markFailedIfStillActive('worker_recovery_required', 'The generation could not be completed safely by the worker.');
             return;
         }
 
@@ -75,27 +69,39 @@ class GenerateContentPlan implements ShouldQueue
                 $generation->model,
             );
 
+            $estimatedCost = null;
+            if (
+                $result->inputTokens !== null &&
+                $result->outputTokens !== null &&
+                $generation->input_cost_per_million !== null &&
+                $generation->output_cost_per_million !== null
+            ) {
+                $estimatedCost = $costCalculator->calculate(
+                    $result->inputTokens,
+                    $result->outputTokens,
+                    (string) $generation->input_cost_per_million,
+                    (string) $generation->output_cost_per_million,
+                );
+            }
+
             $generation->update([
                 'status' => 'completed',
                 'response' => $result->contentPlan->toArray(),
                 'input_tokens' => $result->inputTokens,
                 'output_tokens' => $result->outputTokens,
+                'estimated_cost' => $estimatedCost,
                 'completed_at' => now(),
                 'error_code' => null,
                 'error_message' => null,
             ]);
         } catch (ContentGenerationException $exception) {
-            if (
-                $exception->errorCode === 'provider_rate_limited'
-                && $this->attempts() === 1
-            ) {
+            if ($exception->errorCode === 'provider_rate_limited' && $this->attempts() === 1) {
                 $generation->update([
                     'status' => 'pending',
                     'processing_started_at' => null,
                 ]);
 
                 $this->release(10);
-
                 return;
             }
 
@@ -119,10 +125,7 @@ class GenerateContentPlan implements ShouldQueue
             report($exception);
         }
 
-        $this->markFailedIfStillActive(
-            'worker_failed',
-            'The content plan could not be generated. Please try again later.',
-        );
+        $this->markFailedIfStillActive('worker_failed', 'The content plan could not be generated. Please try again later.');
     }
 
     private function markFailedIfStillActive(string $errorCode, string $message): void
