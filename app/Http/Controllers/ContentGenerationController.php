@@ -10,16 +10,49 @@ use App\Services\OpenAIService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 class ContentGenerationController extends Controller
 {
+    private function generationRateLimitKey(Request $request): string
+    {
+        return 'generation-submissions:user:'.$request->user()->id;
+    }
+
+    private function ensureSubmissionAllowed(Request $request): ?JsonResponse
+    {
+        $key = $this->generationRateLimitKey($request);
+        $maxAttempts = (int) config('generation.rate_limit.max_attempts', 5);
+        $decaySeconds = (int) config('generation.rate_limit.decay_seconds', 60);
+
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            $retryAfter = RateLimiter::availableIn($key);
+
+            return response()->json([
+                'code' => 'generation_rate_limited',
+                'message' => 'Too many generation requests. Please wait before trying again.',
+                'retry_after' => $retryAfter,
+            ], 429, [
+                'Retry-After' => (string) $retryAfter,
+            ]);
+        }
+
+        RateLimiter::hit($key, $decaySeconds);
+
+        return null;
+    }
+
     public function store(
         Request $request,
         Project $project,
         OpenAIService $openAIService,
     ): JsonResponse {
         abort_unless($project->user_id === $request->user()->id, 404);
+
+        if ($rateLimitResponse = $this->ensureSubmissionAllowed($request)) {
+            return $rateLimitResponse;
+        }
 
         if (
             blank($project->title) ||
@@ -207,6 +240,10 @@ class ContentGenerationController extends Controller
     ): JsonResponse {
         abort_unless($project->user_id === $request->user()->id, 404);
         abort_unless($generation->project_id === $project->id, 404);
+
+        if ($rateLimitResponse = $this->ensureSubmissionAllowed($request)) {
+            return $rateLimitResponse;
+        }
 
         $validated = $request->validate([
             'instructions' => ['required', 'string', 'filled'],
