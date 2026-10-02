@@ -29,6 +29,12 @@ export interface ProjectGeneration {
     model: string | null;
     input_tokens: number | null;
     output_tokens: number | null;
+    input_cost_per_million: string | null;
+    output_cost_per_million: string | null;
+    cost_currency: string | null;
+    estimated_cost: string | null;
+    pricing_source: string | null;
+    pricing_checked_at: string | null;
     error_code: string | null;
     error_message: string | null;
     processing_started_at: string | null;
