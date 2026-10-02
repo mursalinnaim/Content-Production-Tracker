@@ -55,6 +55,11 @@ class ContentGenerationController extends Controller
                 'status' => 'pending',
                 'prompt' => $prepared['prompt'],
                 'model' => $prepared['model'],
+                'input_cost_per_million' => $prepared['pricing']['inputRate'] ?? null,
+                'output_cost_per_million' => $prepared['pricing']['outputRate'] ?? null,
+                'cost_currency' => $prepared['pricing']['currency'] ?? null,
+                'pricing_source' => $prepared['pricing']['source'] ?? null,
+                'pricing_checked_at' => $prepared['pricing']['checkedAt'] ?? null,
             ]);
         });
 
@@ -259,6 +264,11 @@ class ContentGenerationController extends Controller
                 'prompt' => $prepared['prompt'],
                 'regeneration_instructions' => $instructions,
                 'model' => $prepared['model'],
+                'input_cost_per_million' => $prepared['pricing']['inputRate'] ?? null,
+                'output_cost_per_million' => $prepared['pricing']['outputRate'] ?? null,
+                'cost_currency' => $prepared['pricing']['currency'] ?? null,
+                'pricing_source' => $prepared['pricing']['source'] ?? null,
+                'pricing_checked_at' => $prepared['pricing']['checkedAt'] ?? null,
             ]);
         });
 
@@ -342,6 +352,12 @@ class ContentGenerationController extends Controller
             'model' => $generation->model,
             'input_tokens' => $generation->input_tokens,
             'output_tokens' => $generation->output_tokens,
+            'input_cost_per_million' => $generation->input_cost_per_million,
+            'output_cost_per_million' => $generation->output_cost_per_million,
+            'cost_currency' => $generation->cost_currency,
+            'estimated_cost' => $generation->estimated_cost,
+            'pricing_source' => $generation->pricing_source,
+            'pricing_checked_at' => $generation->pricing_checked_at,
             'error_code' => $generation->error_code,
             'error_message' => $generation->error_message,
             'processing_started_at' => $generation->processing_started_at,
