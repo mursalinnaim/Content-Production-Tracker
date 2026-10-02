@@ -854,3 +854,62 @@ The final post-fix verification was run from the updated branch.
 - `composer ci:check` — passed.
 
 The 3 skipped Laravel tests are the existing Fortify two-factor-authentication tests because two-factor authentication is not enabled in the local configuration.
+
+
+# Generation Cost and Safety Design
+
+## Date
+
+October 2, 2026
+
+## Issue
+
+- Issue: #15 — Generation cost tracking, shared rate limiting, input bounds, and safety
+
+## Starting Branch and Commit
+
+- Branch: `feature/generation-cost-and-safety`
+- Starting commit: `cc71c9a1899185ff4e13ee5727bd2769c3b955a1`
+
+This branch already existed and is nine commits ahead of `main`. No new implementation code is being added in this design-only step.
+
+## Baseline Verification
+
+The branch starts from the completed Day 5 generation-review implementation. The repository's existing Day 5 work log records these baseline checks for the starting implementation:
+
+- `npm run build` — PASS.
+- `composer ci:check` — PASS.
+- `npm run type-check` — PASS.
+- Focused Day 5 backend/frontend regression tests were recorded as passing.
+- The existing full Laravel test suite was recorded with 3 skipped tests for local Fortify two-factor-authentication configuration.
+
+No live provider request is required for this design stage.
+
+## Design Work Completed
+
+- Created `docs/GENERATION-SAFETY-SPEC.md`.
+- Recorded the server-side pricing approach, USD units, decimal precision, rounding, and unavailable-cost behavior.
+- Defined immutable model/pricing snapshots for queued generations.
+- Defined the shared per-user generation/regeneration limiter.
+- Defined exact input limits and validation order.
+- Defined the existing conservative provider retry/failure policy.
+- Defined the safe browser-facing error contract.
+- Defined provider output-token bounding and incomplete-response handling.
+- Preserved the existing controller/service/job architecture and explicitly avoided a generic billing framework.
+
+## Pricing Source Check
+
+OpenAI's official documentation was checked on October 2, 2026.
+
+- Model: `gpt-4o-mini`
+- Input: $0.15 per 1M tokens
+- Output: $0.60 per 1M tokens
+- Currency: USD
+- Source: https://developers.openai.com/api/docs/models/gpt-4o-mini
+- Pricing page: https://developers.openai.com/api/docs/pricing
+
+No third-party pricing source was used.
+
+## Scope Note
+
+This step is documentation/design only. Implementation, migrations, limiter wiring, UI changes, and automated tests are intentionally deferred to the coding stage.
