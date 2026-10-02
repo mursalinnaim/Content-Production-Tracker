@@ -5,17 +5,58 @@ namespace App\Services;
 use App\Data\ContentPlan;
 use App\Data\ContentPlanResult;
 use App\Exceptions\ContentGenerationException;
+use App\Models\ContentGeneration;
 use App\Models\Project;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
 class OpenAIService
 {
-    public function generateContentPlan(Project $project): ContentPlanResult
+    /**
+     * @return array{prompt: string, model: ?string}
+     */
+    public function prepareGeneration(Project $project): array
     {
+        return [
+            'prompt' => $this->buildPrompt($project),
+            'model' => config('services.openai.model'),
+        ];
+    }
+
+    /**
+     * @return array{prompt: string, model: ?string}
+     */
+    public function prepareRegeneration(
+        Project $project,
+        ContentGeneration $sourceGeneration,
+        string $instructions,
+    ): array {
+        $draft = $sourceGeneration->getAttribute('draft');
+        $response = $sourceGeneration->getAttribute('response');
+        $content = is_array($draft)
+            ? $draft
+            : (is_array($response)
+                ? $response
+                : null);
+
+        return [
+            'prompt' => $this->buildRegenerationPrompt(
+                $project,
+                $content,
+                $instructions,
+            ),
+            'model' => config('services.openai.model'),
+        ];
+    }
+
+    public function generateContentPlan(
+        Project $project,
+        ?string $prompt = null,
+        ?string $model = null,
+    ): ContentPlanResult {
+        $prompt ??= $this->buildPrompt($project);
+        $model = func_num_args() >= 3 ? $model : config('services.openai.model');
         $apiKey = config('services.openai.api_key');
-        $model = config('services.openai.model');
-        $prompt = $this->buildPrompt($project);
 
         if (empty($apiKey) || empty($model)) {
             throw new ContentGenerationException(
@@ -61,10 +102,7 @@ class OpenAIService
                                                 'heading' => ['type' => 'string'],
                                                 'purpose' => ['type' => 'string'],
                                             ],
-                                            'required' => [
-                                                'heading',
-                                                'purpose',
-                                            ],
+                                            'required' => ['heading', 'purpose'],
                                         ],
                                     ],
                                     'key_points' => [
@@ -93,6 +131,15 @@ class OpenAIService
                     ],
                 ]);
 
+            if ($response->status() === 429) {
+                throw new ContentGenerationException(
+                    'OpenAI rate limit reached.',
+                    $prompt,
+                    $model,
+                    'provider_rate_limited',
+                );
+            }
+
             if ($response->failed()) {
                 throw new ContentGenerationException(
                     'OpenAI request failed.',
@@ -117,7 +164,6 @@ class OpenAIService
                             is_string($contentItem['text'] ?? null)
                         ) {
                             $content = $contentItem['text'];
-
                             break 2;
                         }
                     }
@@ -164,6 +210,41 @@ class OpenAIService
                 'generation_failed',
             );
         }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $content
+     */
+    private function buildRegenerationPrompt(
+        Project $project,
+        ?array $content,
+        string $instructions,
+    ): string {
+        $plan = json_encode($content, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+
+        return <<<PROMPT
+Create a revised content production plan using only the project information and the existing plan below.
+
+Project title:
+{$project->title}
+
+Content type:
+{$project->content_type}
+
+Brief:
+{$project->brief}
+
+Notes:
+{$project->notes}
+
+Existing plan:
+{$plan}
+
+User regeneration instructions:
+{$instructions}
+
+Preserve useful information from the existing plan unless the user's instructions require a change. Do not invent specific facts that are not present in the project information. If important information is missing, mention it in risks_or_missing_information.
+PROMPT;
     }
 
     private function buildPrompt(Project $project): string
