@@ -1291,7 +1291,14 @@ onBeforeUnmount(() => {
                         </div>
                     </template>
 
-                    <ContentPlanDisplay v-else :plan="savedContentPlan" />
+                    <ContentPlanDisplay
+                        v-else
+                        :plan="savedContentPlan"
+                        :model="displayedGeneration?.model"
+                        :input-tokens="displayedGeneration?.input_tokens"
+                        :output-tokens="displayedGeneration?.output_tokens"
+                        :estimated-cost="displayedGeneration?.estimated_cost"
+                    />
                 </div>
             </div>
         </template>
