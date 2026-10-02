@@ -935,3 +935,18 @@ Implemented the cost-tracking portion only. No rate limiter, input-bound enforce
 ### Verification status
 
 Automated verification was not run through the GitHub connector in this step. The focused tests were added but still need to be run in the local project environment, along with the existing CI checks.
+
+
+## 2026-10-02 — Section 6: shared per-user generation rate limit
+
+Implemented the shared submission limiter only.
+
+- Added a configurable Laravel rate limiter of 5 generation submissions per authenticated user per 60 seconds.
+- Initial generation and regeneration use the same user-scoped limiter key.
+- The limiter runs after authentication/ownership and before later project/request validation, so submitted attempts consume allowance as specified.
+- Rate-limited requests return HTTP 429, a stable generation_rate_limited code, a safe message, retry_after, and Retry-After without creating work or calling the provider.
+- History, polling, draft save, acceptance, and other non-generation operations do not consume the allowance.
+- Existing per-project active-generation protection remains unchanged.
+- Added focused feature tests for shared allowance, validation-failure counting, and non-generation operations.
+
+Verification: focused tests still need to be run locally; no automated suite was executed through the GitHub connector.
