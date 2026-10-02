@@ -12,20 +12,19 @@ use Throwable;
 
 class OpenAIService
 {
-    /**
-     * @return array{prompt: string, model: ?string}
-     */
+    /** @return array{prompt: string, model: ?string, pricing: ?array{inputRate: string, outputRate: string, currency: string, source: string, checkedAt: string}} */
     public function prepareGeneration(Project $project): array
     {
+        $model = config('services.openai.model');
+
         return [
             'prompt' => $this->buildPrompt($project),
-            'model' => config('services.openai.model'),
+            'model' => $model,
+            'pricing' => is_string($model) ? $this->pricingFor($model) : null,
         ];
     }
 
-    /**
-     * @return array{prompt: string, model: ?string}
-     */
+    /** @return array{prompt: string, model: ?string, pricing: ?array{inputRate: string, outputRate: string, currency: string, source: string, checkedAt: string}} */
     public function prepareRegeneration(
         Project $project,
         ContentGeneration $sourceGeneration,
@@ -35,17 +34,32 @@ class OpenAIService
         $response = $sourceGeneration->getAttribute('response');
         $content = is_array($draft)
             ? $draft
-            : (is_array($response)
-                ? $response
-                : null);
+            : (is_array($response) ? $response : null);
+        $model = config('services.openai.model');
 
         return [
-            'prompt' => $this->buildRegenerationPrompt(
-                $project,
-                $content,
-                $instructions,
-            ),
-            'model' => config('services.openai.model'),
+            'prompt' => $this->buildRegenerationPrompt($project, $content, $instructions),
+            'model' => $model,
+            'pricing' => is_string($model) ? $this->pricingFor($model) : null,
+        ];
+    }
+
+    /** @return array{inputRate: string, outputRate: string, currency: string, source: string, checkedAt: string}|null */
+    public function pricingFor(string $model): ?array
+    {
+        $inputRate = config("generation.cost.input_rate_per_million.{$model}");
+        $outputRate = config("generation.cost.output_rate_per_million.{$model}");
+
+        if (! is_string($inputRate) || ! is_string($outputRate)) {
+            return null;
+        }
+
+        return [
+            'inputRate' => $inputRate,
+            'outputRate' => $outputRate,
+            'currency' => (string) config('generation.cost.currency', 'USD'),
+            'source' => (string) config('generation.cost.pricing_source'),
+            'checkedAt' => (string) config('generation.cost.pricing_checked_at'),
         ];
     }
 
@@ -73,14 +87,8 @@ class OpenAIService
                 ->post('https://api.openai.com/v1/responses', [
                     'model' => $model,
                     'input' => [
-                        [
-                            'role' => 'system',
-                            'content' => 'You generate structured content plans using only the provided project information.',
-                        ],
-                        [
-                            'role' => 'user',
-                            'content' => $prompt,
-                        ],
+                        ['role' => 'system', 'content' => 'You generate structured content plans using only the provided project information.'],
+                        ['role' => 'user', 'content' => $prompt],
                     ],
                     'text' => [
                         'format' => [
@@ -105,18 +113,9 @@ class OpenAIService
                                             'required' => ['heading', 'purpose'],
                                         ],
                                     ],
-                                    'key_points' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
-                                    ],
-                                    'production_tasks' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
-                                    ],
-                                    'risks_or_missing_information' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
-                                    ],
+                                    'key_points' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                    'production_tasks' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                    'risks_or_missing_information' => ['type' => 'array', 'items' => ['type' => 'string']],
                                 ],
                                 'required' => [
                                     'suggested_title',
@@ -132,21 +131,11 @@ class OpenAIService
                 ]);
 
             if ($response->status() === 429) {
-                throw new ContentGenerationException(
-                    'OpenAI rate limit reached.',
-                    $prompt,
-                    $model,
-                    'provider_rate_limited',
-                );
+                throw new ContentGenerationException('OpenAI rate limit reached.', $prompt, $model, 'provider_rate_limited');
             }
 
             if ($response->failed()) {
-                throw new ContentGenerationException(
-                    'OpenAI request failed.',
-                    $prompt,
-                    $model,
-                    'provider_error',
-                );
+                throw new ContentGenerationException('OpenAI request failed.', $prompt, $model, 'provider_error');
             }
 
             $output = $response->json('output');
@@ -159,10 +148,7 @@ class OpenAIService
                     }
 
                     foreach ($outputItem['content'] as $contentItem) {
-                        if (
-                            is_array($contentItem) &&
-                            is_string($contentItem['text'] ?? null)
-                        ) {
+                        if (is_array($contentItem) && is_string($contentItem['text'] ?? null)) {
                             $content = $contentItem['text'];
                             break 2;
                         }
@@ -171,23 +157,13 @@ class OpenAIService
             }
 
             if (! is_string($content) || trim($content) === '') {
-                throw new ContentGenerationException(
-                    'OpenAI returned an empty response.',
-                    $prompt,
-                    $model,
-                    'empty_response',
-                );
+                throw new ContentGenerationException('OpenAI returned an empty response.', $prompt, $model, 'empty_response');
             }
 
             try {
                 $contentPlan = ContentPlan::fromJson($content);
-            } catch (\JsonException $exception) {
-                throw new ContentGenerationException(
-                    'OpenAI returned invalid JSON.',
-                    $prompt,
-                    $model,
-                    'invalid_json',
-                );
+            } catch (\JsonException) {
+                throw new ContentGenerationException('OpenAI returned invalid JSON.', $prompt, $model, 'invalid_json');
             }
 
             $inputTokens = $response->json('usage.input_tokens');
@@ -202,24 +178,14 @@ class OpenAIService
             );
         } catch (ContentGenerationException $exception) {
             throw $exception;
-        } catch (Throwable $exception) {
-            throw new ContentGenerationException(
-                'Content generation failed.',
-                $prompt,
-                $model,
-                'generation_failed',
-            );
+        } catch (Throwable) {
+            throw new ContentGenerationException('Content generation failed.', $prompt, $model, 'generation_failed');
         }
     }
 
-    /**
-     * @param  array<string, mixed>|null  $content
-     */
-    private function buildRegenerationPrompt(
-        Project $project,
-        ?array $content,
-        string $instructions,
-    ): string {
+    /** @param array<string, mixed>|null $content */
+    private function buildRegenerationPrompt(Project $project, ?array $content, string $instructions): string
+    {
         $plan = json_encode($content, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
 
         return <<<PROMPT
