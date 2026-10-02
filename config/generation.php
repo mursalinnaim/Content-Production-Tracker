@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'rate_limit' => [
+        'max_attempts' => 5,
+        'decay_seconds' => 60,
+    ],
+
     'cost' => [
         'currency' => 'USD',
         'scale' => 12,
