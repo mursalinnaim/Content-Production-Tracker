@@ -913,3 +913,25 @@ No third-party pricing source was used.
 ## Scope Note
 
 This step is documentation/design only. Implementation, migrations, limiter wiring, UI changes, and automated tests are intentionally deferred to the coding stage.
+
+
+## 2026-10-02 — Section 5: generation usage and cost tracking
+
+Issue: #15 — Generation cost tracking, shared rate limiting, input bounds, and safety.
+
+Implemented the cost-tracking portion only. No rate limiter, input-bound enforcement, or broader safety changes were added in this step.
+
+### Implemented
+
+- Added config/generation.php with the currently allowed gpt-4o-mini USD input/output rates and the official OpenAI model-page source/check date.
+- Added GenerationCostCalculator using decimal-string rates and integer scaled arithmetic rather than floating-point cost calculations.
+- Added nullable cost/pricing snapshot fields to content_generations with 12 decimal places.
+- Snapshotted model pricing metadata when a generation is accepted into the background queue, including currency, source, and pricing check date.
+- Recorded provider input_tokens and output_tokens from the Responses API result.
+- Calculated and persisted estimated_cost only when both usage values and both snapshotted rates are available; unavailable usage remains null rather than being treated as zero.
+- Exposed model, token counts, and estimated USD cost for the selected historical generation in the existing review UI.
+- Added focused calculator tests for precision, rounding, invalid inputs, configured pricing, and unknown models.
+
+### Verification status
+
+Automated verification was not run through the GitHub connector in this step. The focused tests were added but still need to be run in the local project environment, along with the existing CI checks.
