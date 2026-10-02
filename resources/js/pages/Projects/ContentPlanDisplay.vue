@@ -3,76 +3,82 @@ import type { ContentPlan } from './types';
 
 interface Props {
     plan: ContentPlan;
+    model?: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    estimatedCost?: string | null;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    model: null,
+    inputTokens: null,
+    outputTokens: null,
+    estimatedCost: null,
+});
+
+const inputTokensLabel = props.inputTokens === null ? 'Unavailable' : String(props.inputTokens);
+const outputTokensLabel = props.outputTokens === null ? 'Unavailable' : String(props.outputTokens);
+const estimatedCostLabel =
+    props.estimatedCost === null ? 'Unavailable' : '$' + props.estimatedCost;
 </script>
 
 <template>
     <div class="space-y-5">
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-md border p-3">
+                <p class="text-muted-foreground text-xs">Model</p>
+                <p class="mt-1 text-sm font-medium">{{ model ?? 'Unavailable' }}</p>
+            </div>
+            <div class="rounded-md border p-3">
+                <p class="text-muted-foreground text-xs">Tokens</p>
+                <p class="mt-1 text-sm font-medium">
+                    {{ inputTokensLabel }} in / {{ outputTokensLabel }} out
+                </p>
+            </div>
+            <div class="rounded-md border p-3">
+                <p class="text-muted-foreground text-xs">Estimated cost (USD)</p>
+                <p class="mt-1 text-sm font-medium">{{ estimatedCostLabel }}</p>
+            </div>
+        </div>
+
         <div>
-            <p class="text-muted-foreground text-xs font-medium">
-                SUGGESTED TITLE
-            </p>
-            <h3 class="mt-1 text-lg font-semibold">
-                {{ plan.suggested_title }}
-            </h3>
+            <p class="text-muted-foreground text-xs font-medium">SUGGESTED TITLE</p>
+            <h3 class="mt-1 text-lg font-semibold">{{ plan.suggested_title }}</h3>
         </div>
 
         <div>
             <p class="text-sm font-medium">Content Brief</p>
-            <p class="text-muted-foreground mt-1 text-sm">
-                {{ plan.content_brief }}
-            </p>
+            <p class="text-muted-foreground mt-1 text-sm">{{ plan.content_brief }}</p>
         </div>
 
         <div>
             <p class="text-sm font-medium">Outline</p>
             <div class="mt-2 space-y-3">
-                <div
-                    v-for="(item, index) in plan.outline"
-                    :key="index"
-                    class="bg-muted/50 rounded-md p-3"
-                >
+                <div v-for="(item, index) in plan.outline" :key="index" class="bg-muted/50 rounded-md p-3">
                     <p class="font-medium">{{ item.heading }}</p>
-                    <p class="text-muted-foreground mt-1 text-sm">
-                        {{ item.purpose }}
-                    </p>
+                    <p class="text-muted-foreground mt-1 text-sm">{{ item.purpose }}</p>
                 </div>
             </div>
         </div>
 
         <div>
             <p class="text-sm font-medium">Key Points</p>
-            <ul
-                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-            >
-                <li v-for="(point, index) in plan.key_points" :key="index">
-                    {{ point }}
-                </li>
+            <ul class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm">
+                <li v-for="(point, index) in plan.key_points" :key="index">{{ point }}</li>
             </ul>
         </div>
 
         <div>
             <p class="text-sm font-medium">Production Tasks</p>
-            <ul
-                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-            >
-                <li v-for="(task, index) in plan.production_tasks" :key="index">
-                    {{ task }}
-                </li>
+            <ul class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm">
+                <li v-for="(task, index) in plan.production_tasks" :key="index">{{ task }}</li>
             </ul>
         </div>
 
         <div>
             <p class="text-sm font-medium">Risks / Missing Information</p>
-            <ul
-                class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm"
-            >
-                <li
-                    v-for="(risk, index) in plan.risks_or_missing_information"
-                    :key="index"
-                >
+            <ul class="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-sm">
+                <li v-for="(risk, index) in plan.risks_or_missing_information" :key="index">
                     {{ risk }}
                 </li>
             </ul>
