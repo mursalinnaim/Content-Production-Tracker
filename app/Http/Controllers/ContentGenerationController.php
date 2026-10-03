@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use InvalidArgumentException;
 use Throwable;
 
 class ContentGenerationController extends Controller
@@ -54,17 +55,15 @@ class ContentGenerationController extends Controller
             return $rateLimitResponse;
         }
 
-        if (
-            blank($project->title) ||
-            blank($project->content_type) ||
-            blank($project->brief)
-        ) {
+        try {
+            $prepared = $openAIService->prepareGeneration($project);
+        } catch (InvalidArgumentException $exception) {
             return response()->json([
-                'message' => 'Project is missing required information.',
+                'message' => $exception->getMessage(),
             ], 422);
         }
 
-        $generation = DB::transaction(function () use ($project, $openAIService): ContentGeneration {
+        $generation = DB::transaction(function () use ($project, $prepared): ContentGeneration {
             $lockedProject = Project::query()
                 ->whereKey($project->id)
                 ->lockForUpdate()
@@ -79,7 +78,6 @@ class ContentGenerationController extends Controller
                 return $activeGeneration;
             }
 
-            $prepared = $openAIService->prepareGeneration($lockedProject);
             $generationNumber = (int) $lockedProject->contentGenerations()
                 ->max('generation_number') + 1;
 
@@ -145,18 +143,18 @@ class ContentGenerationController extends Controller
 
         $validated = $request->validate([
             'draft' => ['required', 'array:suggested_title,content_brief,outline,key_points,production_tasks,risks_or_missing_information'],
-            'draft.suggested_title' => ['required', 'string'],
-            'draft.content_brief' => ['required', 'string'],
-            'draft.outline' => ['required', 'array', 'list'],
+            'draft.suggested_title' => ['required', 'string', 'max:200'],
+            'draft.content_brief' => ['required', 'string', 'max:5000'],
+            'draft.outline' => ['required', 'array', 'list', 'max:20'],
             'draft.outline.*' => ['required', 'array:heading,purpose'],
-            'draft.outline.*.heading' => ['required', 'string'],
-            'draft.outline.*.purpose' => ['required', 'string'],
-            'draft.key_points' => ['required', 'array', 'list'],
-            'draft.key_points.*' => ['required', 'string'],
-            'draft.production_tasks' => ['required', 'array', 'list'],
-            'draft.production_tasks.*' => ['required', 'string'],
-            'draft.risks_or_missing_information' => ['required', 'array', 'list'],
-            'draft.risks_or_missing_information.*' => ['required', 'string'],
+            'draft.outline.*.heading' => ['required', 'string', 'max:200'],
+            'draft.outline.*.purpose' => ['required', 'string', 'max:1000'],
+            'draft.key_points' => ['required', 'array', 'list', 'max:20'],
+            'draft.key_points.*' => ['required', 'string', 'max:1000'],
+            'draft.production_tasks' => ['required', 'array', 'list', 'max:20'],
+            'draft.production_tasks.*' => ['required', 'string', 'max:1000'],
+            'draft.risks_or_missing_information' => ['required', 'array', 'list', 'max:20'],
+            'draft.risks_or_missing_information.*' => ['required', 'string', 'max:1000'],
         ]);
 
         $generation->update([
@@ -246,8 +244,20 @@ class ContentGenerationController extends Controller
         }
 
         $validated = $request->validate([
-            'instructions' => ['required', 'string', 'filled'],
+            'instructions' => ['required', 'string', 'filled', 'max:2000'],
         ]);
+
+        try {
+            $prepared = $openAIService->prepareRegeneration(
+                $project,
+                $generation,
+                trim($validated['instructions']),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         $newGeneration = DB::transaction(function () use (
             $project,
@@ -286,11 +296,6 @@ class ContentGenerationController extends Controller
                 abort(422, 'Regeneration instructions are required.');
             }
 
-            $prepared = $openAIService->prepareRegeneration(
-                $lockedProject,
-                $sourceGeneration,
-                $instructions,
-            );
             $generationNumber = (int) $lockedProject->contentGenerations()
                 ->max('generation_number') + 1;
 
