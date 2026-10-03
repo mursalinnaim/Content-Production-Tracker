@@ -8,17 +8,28 @@ use App\Exceptions\ContentGenerationException;
 use App\Models\ContentGeneration;
 use App\Models\Project;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use Throwable;
 
 class OpenAIService
 {
+    private const MAX_PROJECT_TITLE_LENGTH = 200;
+    private const MAX_PROJECT_BRIEF_LENGTH = 5000;
+    private const MAX_PROJECT_NOTES_LENGTH = 5000;
+    private const MAX_REGENERATION_INSTRUCTIONS_LENGTH = 2000;
+    private const MAX_PROMPT_LENGTH = 30000;
+    private const MAX_OUTPUT_TOKENS = 2048;
     /** @return array{prompt: string, model: ?string, pricing: ?array{inputRate: string, outputRate: string, currency: string, source: string, checkedAt: string}} */
     public function prepareGeneration(Project $project): array
     {
         $model = config('services.openai.model');
 
+        $this->validateProjectContent($project);
+        $prompt = $this->buildPrompt($project);
+        $this->validatePrompt($prompt);
+
         return [
-            'prompt' => $this->buildPrompt($project),
+            'prompt' => $prompt,
             'model' => $model,
             'pricing' => is_string($model) ? $this->pricingFor($model) : null,
         ];
@@ -35,10 +46,20 @@ class OpenAIService
         $content = is_array($draft)
             ? $draft
             : (is_array($response) ? $response : null);
+        $this->validateProjectContent($project);
+        $this->validateRegenerationInstructions($instructions);
+
+        if ($content === null) {
+            throw new InvalidArgumentException('The source content plan is invalid or unavailable.');
+        }
+
+        ContentPlan::fromArray($content);
+        $prompt = $this->buildRegenerationPrompt($project, $content, $instructions);
+        $this->validatePrompt($prompt);
         $model = config('services.openai.model');
 
         return [
-            'prompt' => $this->buildRegenerationPrompt($project, $content, $instructions),
+            'prompt' => $prompt,
             'model' => $model,
             'pricing' => is_string($model) ? $this->pricingFor($model) : null,
         ];
@@ -86,6 +107,7 @@ class OpenAIService
                 ->timeout(60)
                 ->post('https://api.openai.com/v1/responses', [
                     'model' => $model,
+                    'max_output_tokens' => self::MAX_OUTPUT_TOKENS,
                     'input' => [
                         ['role' => 'system', 'content' => 'You generate structured content plans using only the provided project information.'],
                         ['role' => 'user', 'content' => $prompt],
@@ -134,6 +156,10 @@ class OpenAIService
                 throw new ContentGenerationException('OpenAI rate limit reached.', $prompt, $model, 'provider_rate_limited');
             }
 
+            if ($response->json('status') === 'incomplete' || $response->json('incomplete_details') !== null) {
+                throw new ContentGenerationException('OpenAI returned an incomplete response.', $prompt, $model, 'incomplete_response');
+            }
+
             if ($response->failed()) {
                 throw new ContentGenerationException('OpenAI request failed.', $prompt, $model, 'provider_error');
             }
@@ -162,8 +188,8 @@ class OpenAIService
 
             try {
                 $contentPlan = ContentPlan::fromJson($content);
-            } catch (\JsonException) {
-                throw new ContentGenerationException('OpenAI returned invalid JSON.', $prompt, $model, 'invalid_json');
+            } catch (\JsonException|InvalidArgumentException) {
+                throw new ContentGenerationException('OpenAI returned invalid or out-of-bounds content.', $prompt, $model, 'invalid_output');
             }
 
             $inputTokens = $response->json('usage.input_tokens');
@@ -180,6 +206,38 @@ class OpenAIService
             throw $exception;
         } catch (Throwable) {
             throw new ContentGenerationException('Content generation failed.', $prompt, $model, 'generation_failed');
+        }
+    }
+
+    public function validateProjectContent(Project $project): void
+    {
+        $this->validateLength((string) $project->title, self::MAX_PROJECT_TITLE_LENGTH, 'Project title');
+        $this->validateLength((string) $project->brief, self::MAX_PROJECT_BRIEF_LENGTH, 'Project brief');
+        $this->validateLength((string) $project->notes, self::MAX_PROJECT_NOTES_LENGTH, 'Project notes');
+
+        if (blank($project->title) || blank($project->content_type) || blank($project->brief)) {
+            throw new InvalidArgumentException('Project is missing required information.');
+        }
+    }
+
+    private function validateRegenerationInstructions(string $instructions): void
+    {
+        if (trim($instructions) === '') {
+            throw new InvalidArgumentException('Regeneration instructions are required.');
+        }
+
+        $this->validateLength($instructions, self::MAX_REGENERATION_INSTRUCTIONS_LENGTH, 'Regeneration instructions');
+    }
+
+    private function validatePrompt(string $prompt): void
+    {
+        $this->validateLength($prompt, self::MAX_PROMPT_LENGTH, 'The composed prompt');
+    }
+
+    private function validateLength(string $value, int $max, string $field): void
+    {
+        if (mb_strlen($value) > $max) {
+            throw new InvalidArgumentException("{$field} exceeds the maximum length of {$max} characters.");
         }
     }
 
