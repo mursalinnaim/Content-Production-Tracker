@@ -7,6 +7,12 @@ use JsonException;
 
 final readonly class ContentPlan
 {
+    private const MAX_TITLE_LENGTH = 200;
+    private const MAX_CONTENT_BRIEF_LENGTH = 5000;
+    private const MAX_COLLECTIONS = 20;
+    private const MAX_OUTLINE_HEADING_LENGTH = 200;
+    private const MAX_OUTLINE_PURPOSE_LENGTH = 1000;
+    private const MAX_LIST_ITEM_LENGTH = 1000;
     /**
      * @param  array<int, array{heading: string, purpose: string}>  $outline
      * @param  array<int, string>  $keyPoints
@@ -79,7 +85,7 @@ final readonly class ContentPlan
             'risks_or_missing_information'
         );
 
-        if (! is_array($data->outline)) {
+        if (! is_array($data->outline) || count($data->outline) > self::MAX_COLLECTIONS) {
             throw new InvalidArgumentException(
                 'outline must be a JSON array.'
             );
@@ -112,11 +118,17 @@ final readonly class ContentPlan
                 );
             }
 
+            self::validateLength($item->heading, self::MAX_OUTLINE_HEADING_LENGTH, 'outline heading');
+            self::validateLength($item->purpose, self::MAX_OUTLINE_PURPOSE_LENGTH, 'outline purpose');
+
             $outline[] = [
                 'heading' => $item->heading,
                 'purpose' => $item->purpose,
             ];
         }
+
+        self::validateLength($data->suggested_title, self::MAX_TITLE_LENGTH, 'suggested_title');
+        self::validateLength($data->content_brief, self::MAX_CONTENT_BRIEF_LENGTH, 'content_brief');
 
         return new self(
             suggestedTitle: $data->suggested_title,
@@ -231,6 +243,13 @@ final readonly class ContentPlan
             );
         }
 
+        self::validateLength($data['suggested_title'], self::MAX_TITLE_LENGTH, 'suggested_title');
+        self::validateLength($data['content_brief'], self::MAX_CONTENT_BRIEF_LENGTH, 'content_brief');
+
+        if (count($data['outline']) > self::MAX_COLLECTIONS) {
+            throw new InvalidArgumentException('outline must contain no more than 20 items.');
+        }
+
         foreach ($data['outline'] as $item) {
             if (! is_array($item)) {
                 throw new InvalidArgumentException(
@@ -249,6 +268,9 @@ final readonly class ContentPlan
                     'Each outline item must have a string purpose.'
                 );
             }
+
+            self::validateLength($item['heading'], self::MAX_OUTLINE_HEADING_LENGTH, 'outline heading');
+            self::validateLength($item['purpose'], self::MAX_OUTLINE_PURPOSE_LENGTH, 'outline purpose');
         }
     }
 
@@ -262,12 +284,25 @@ final readonly class ContentPlan
             );
         }
 
+        if (count($value) > self::MAX_COLLECTIONS) {
+            throw new InvalidArgumentException("{$field} must contain no more than 20 items.");
+        }
+
         foreach ($value as $item) {
             if (! is_string($item)) {
                 throw new InvalidArgumentException(
                     "Every item in {$field} must be a string."
                 );
             }
+
+            self::validateLength($item, self::MAX_LIST_ITEM_LENGTH, "{$field} item");
+        }
+    }
+
+    private static function validateLength(string $value, int $max, string $field): void
+    {
+        if (mb_strlen($value) > $max) {
+            throw new InvalidArgumentException("{$field} exceeds the maximum length of {$max} characters.");
         }
     }
 
