@@ -121,8 +121,8 @@ class OpenAIService
                                 'type' => 'object',
                                 'additionalProperties' => false,
                                 'properties' => [
-                                    'suggested_title' => ['type' => 'string'],
-                                    'content_brief' => ['type' => 'string'],
+                                    'suggested_title' => ['type' => 'string', 'maxLength' => 200],
+                                    'content_brief' => ['type' => 'string', 'maxLength' => 5000],
                                     'outline' => [
                                         'type' => 'array',
                                         'items' => [
