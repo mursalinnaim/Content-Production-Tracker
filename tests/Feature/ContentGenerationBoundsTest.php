@@ -134,3 +134,53 @@ it('rejects a composed regeneration prompt above 30000 characters', function () 
     Queue::assertNothingPushed();
     Http::assertNothingSent();
 });
+
+
+it('sends the bounded output token cap to the Responses API', function () {
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response([
+            'status' => 'completed',
+            'output' => [[
+                'content' => [[
+                    'text' => json_encode(boundedPlan(), JSON_THROW_ON_ERROR),
+                ]],
+            ]],
+            'usage' => ['input_tokens' => 10, 'output_tokens' => 20],
+        ]),
+    ]);
+
+    $project = Project::factory()->create();
+    $generation = ContentGeneration::factory()->create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Bounded prompt',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    (new GenerateContentPlan($generation->id))->handle(app(OpenAIService::class));
+
+    Http::assertSent(fn ($request) => $request->data()['max_output_tokens'] === 2048);
+    expect($generation->fresh()->status)->toBe('completed');
+});
+
+it('fails safely when the provider returns an incomplete response', function () {
+    Http::fake([
+        'https://api.openai.com/v1/responses' => Http::response([
+            'status' => 'incomplete',
+            'incomplete_details' => ['reason' => 'max_output_tokens'],
+        ]),
+    ]);
+
+    $project = Project::factory()->create();
+    $generation = ContentGeneration::factory()->create([
+        'project_id' => $project->id,
+        'status' => 'pending',
+        'prompt' => 'Bounded prompt',
+        'model' => 'gpt-4o-mini',
+    ]);
+
+    (new GenerateContentPlan($generation->id))->handle(app(OpenAIService::class));
+
+    expect($generation->fresh()->status)->toBe('failed')
+        ->and($generation->fresh()->error_code)->toBe('incomplete_response');
+});
