@@ -1134,6 +1134,7 @@ onBeforeUnmount(() => {
                                 :id="`regenerate-${displayedGeneration.id}`"
                                 v-model="regenerationInstructions"
                                 rows="3"
+                                maxlength="2000"
                                 placeholder="Tell the AI what you want changed..."
                                 class="w-full rounded-md border px-3 py-2 text-sm"
                             />
@@ -1182,6 +1183,7 @@ onBeforeUnmount(() => {
                             <input
                                 id="content-plan-title"
                                 v-model="draft.suggested_title"
+                                maxlength="200"
                                 type="text"
                                 class="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                             />
@@ -1197,6 +1199,7 @@ onBeforeUnmount(() => {
                             <textarea
                                 id="content-plan-brief"
                                 v-model="draft.content_brief"
+                                maxlength="5000"
                                 rows="4"
                                 class="mt-1 w-full rounded-md border px-3 py-2 text-sm"
                             />
@@ -1210,6 +1213,7 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     class="rounded-md border px-2 py-1 text-xs"
+                                    :disabled="draft.outline.length >= 20"
                                     @click="addOutlineItem"
                                 >
                                     Add section
@@ -1238,12 +1242,14 @@ onBeforeUnmount(() => {
                                     </div>
                                     <input
                                         v-model="item.heading"
+                                        maxlength="200"
                                         type="text"
                                         placeholder="Heading"
                                         class="w-full rounded-md border px-3 py-2 text-sm"
                                     />
                                     <textarea
                                         v-model="item.purpose"
+                                        maxlength="1000"
                                         rows="2"
                                         placeholder="Purpose"
                                         class="w-full rounded-md border px-3 py-2 text-sm"
@@ -1262,6 +1268,7 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     class="rounded-md border px-2 py-1 text-xs"
+                                    :disabled="draft[field].length >= 20"
                                     @click="addListItem(field)"
                                 >
                                     Add item
@@ -1276,6 +1283,7 @@ onBeforeUnmount(() => {
                                 >
                                     <textarea
                                         v-model="draft[field][index]"
+                                        maxlength="1000"
                                         rows="2"
                                         class="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm"
                                     />
