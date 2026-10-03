@@ -156,12 +156,12 @@ class OpenAIService
                 throw new ContentGenerationException('OpenAI rate limit reached.', $prompt, $model, 'provider_rate_limited');
             }
 
-            if ($response->json('status') === 'incomplete' || $response->json('incomplete_details') !== null) {
-                throw new ContentGenerationException('OpenAI returned an incomplete response.', $prompt, $model, 'incomplete_response');
-            }
-
             if ($response->failed()) {
                 throw new ContentGenerationException('OpenAI request failed.', $prompt, $model, 'provider_error');
+            }
+
+            if ($response->json('status') === 'incomplete' || $response->json('incomplete_details') !== null) {
+                throw new ContentGenerationException('OpenAI returned an incomplete response.', $prompt, $model, 'incomplete_response');
             }
 
             $output = $response->json('output');
