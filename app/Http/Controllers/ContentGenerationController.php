@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use InvalidArgumentException;
+use InvalidArgumentException;
 use Throwable;
 
 class ContentGenerationController extends Controller
@@ -246,6 +247,18 @@ class ContentGenerationController extends Controller
         $validated = $request->validate([
             'instructions' => ['required', 'string', 'filled', 'max:2000'],
         ]);
+
+        try {
+            $prepared = $openAIService->prepareRegeneration(
+                $project,
+                $generation,
+                trim($validated['instructions']),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         try {
             $prepared = $openAIService->prepareRegeneration(
