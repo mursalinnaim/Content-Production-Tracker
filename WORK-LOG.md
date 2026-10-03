@@ -950,3 +950,28 @@ Implemented the shared submission limiter only.
 - Added focused feature tests for shared allowance, validation-failure counting, and non-generation operations.
 
 Verification: focused tests still need to be run locally; no automated suite was executed through the GitHub connector.
+
+
+## Section 7 — Bound generation inputs and output
+
+Implemented the documented generation safety bounds on the shared Laravel generation path.
+
+- Stored project fields are checked before generation work is created:
+  - title: 200 characters
+  - brief: 5,000 characters
+  - notes: 5,000 characters
+- Regeneration instructions are limited to 2,000 characters.
+- Draft validation now bounds:
+  - title: 200 characters
+  - content brief: 5,000 characters
+  - outline: 20 items max
+  - outline heading: 200 characters
+  - outline purpose: 1,000 characters
+  - each string-list item: 1,000 characters
+  - each string-list collection: 20 items max
+- Generated provider output is validated through the same ContentPlan bounds before it can be stored.
+- Regeneration validates the stored source plan before composing a new prompt.
+- The final composed prompt is rejected with HTTP 422 when it exceeds 30,000 characters; there is no silent truncation.
+- Responses API requests use a 2,048-token output cap.
+- Provider responses marked incomplete, or output that is empty/malformed/out of bounds, fail safely without replacing earlier content.
+- Added focused feature coverage for oversized project fields, regeneration instructions, drafts, stored source content, composed prompts, output-token caps, and incomplete responses.
